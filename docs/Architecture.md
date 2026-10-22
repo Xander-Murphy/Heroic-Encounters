@@ -18,7 +18,7 @@ The original prototype used Python + Pygame. For a browser game:
             └───────────────┬─────────────────────────────────────┘
                             │ uses services (injected by services.js)
  ┌──────────────┬───────────┼─────────────┬──────────────┬─────────────┐
- │ progression/ │ sharing/  │ content/    │ persistence/ │ analytics/  │
+ │ progression/ │ sharing/  │ content/    │ persistence/ │ insights/   │
  │ Profile      │ ShareSvc  │ Library     │ Storage      │ Analytics   │
  │ Achievements │ Codec     │ Factory     │ adapters     │ sinks       │
  │ DailyChall.  │ Bundles   │ Schema      │ SaveTransfer │             │

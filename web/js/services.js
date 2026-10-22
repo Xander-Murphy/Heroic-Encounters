@@ -1,5 +1,5 @@
 import { AccountService } from './account/AccountService.js';
-import { Analytics, MemoryAnalyticsSink, RemoteAnalyticsSink } from './analytics/Analytics.js';
+import { Analytics, MemoryAnalyticsSink, RemoteAnalyticsSink } from './insights/Insights.js';
 import { ApiClient } from './api/ApiClient.js';
 import { DEFAULT_SERVER_URL } from './config.js';
 import { ContentLibrary, newContentId } from './content/ContentLibrary.js';

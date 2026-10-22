@@ -56,7 +56,7 @@ web/                      The game (static files; runs in any browser)
     progression/          Profile, achievements, unlocks, daily challenge
     persistence/          Storage adapters (localStorage / memory), save backup, cloud-save merge
     account/              Sign-in and background sync of the cloud save
-    analytics/            Engagement metrics (event sinks)
+    insights/             Engagement metrics (event sinks)
     api/                  Community server client
     config.js             Default community server address (empty = same origin)
     ui/                   App shell, screens/, workshop/ editors, components/

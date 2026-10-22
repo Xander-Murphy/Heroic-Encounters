@@ -57,6 +57,7 @@ hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
 code { font-family: ui-monospace, Menlo, Consolas, monospace; }
 .muted { color: var(--text-muted); }
 .loading { text-align: center; margin-top: 30vh; color: var(--text-muted); }
+.boot-help { max-width: 34rem; margin: 20vh auto 0; padding: 0 1rem; text-align: center; color: var(--text-muted); }
 .warning { color: #e8a33a; }
 :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 

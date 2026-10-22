@@ -12,7 +12,7 @@ How the engagement findings in `Business.md` (Mom Test, Value Proposition, Busin
 | "Team synergy", "abilities should have synergy and counterplay" | Taunt, stun/interrupt by speed, vulnerabilities, cleanses, turn-order preview | `engine/targeting.js`, `content/core/abilities.js` |
 | "Community feedback shapes new content", word of mouth (Channels) | Workshop + share strings/links + community database with likes, downloads and "popular" sort | `ui/workshop/`, `sharing/`, `server/api/ContentController.js` |
 | "Small rosters / limited customization" pain | Unlimited player-made heroes, enemies, dungeons; power rating keeps shared content honest | `content/powerBudget.js` |
-| Key metrics: DAU, return rate, run completion, heroes unlocked | Anonymous, opt-out analytics → server summary (Settings → Game metrics) and personal stats (Profile → Stats) | `analytics/Analytics.js`, `server/api/MetricsController.js` |
+| Key metrics: DAU, return rate, run completion, heroes unlocked | Anonymous, opt-out analytics → server summary (Settings → Game metrics) and personal stats (Profile → Stats) | `insights/Insights.js`, `server/api/MetricsController.js` |
 | "Short and simple" combat | Three heroes, one action each per round, tooltips, keyboard shortcuts, reduced motion | `ui/screens/CombatScreen.js` |
 
 ## Privacy

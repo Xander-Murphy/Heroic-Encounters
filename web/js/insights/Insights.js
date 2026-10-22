@@ -8,6 +8,9 @@ import { daysBetween } from '../progression/dates.js';
  * Analytics listens to the event bus and forwards a fixed allow-list of
  * events to its sinks (Strategy). Sinks never see personal data — only an
  * anonymous random install id and event names with small numeric details.
+ *
+ * The file is deliberately not called analytics/Analytics.js: ad blockers
+ * block URLs like that, and one blocked module stops the whole game loading.
  */
 export const TRACKED_EVENTS = Object.freeze([
   'session.start', 'run.started', 'run.finished', 'hero.unlocked', 'level.up',
