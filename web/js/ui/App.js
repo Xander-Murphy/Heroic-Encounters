@@ -81,11 +81,21 @@ export class App {
     this.navigate('home', {}, { replace: true });
     services.events.emit('session.start', {});
 
-    await services.api.checkHealth();
+    await this.connect();
+    this.#checkImportHash();
+    window.addEventListener('online', () => { if (!services.api.available) this.connect(); });
+  }
+
+  /** Reach the community server (waking it up if needed), then start syncing. */
+  async connect() {
+    const { services } = this;
+    const health = services.api.checkHealth();
     this.#updateServerStatus();
+    await health;
+    this.#updateServerStatus();
+    services.events.emit('server.status', { online: services.api.available });
     services.analytics.flush();
     services.account.sync();
-    this.#checkImportHash();
   }
 
   navigate(screenId, params = {}, { fromHistory = false, replace = false } = {}) {
@@ -139,11 +149,16 @@ export class App {
   }
 
   #updateServerStatus() {
-    const online = this.services.api.available;
-    this.status.className = `server-status ${online ? 'online' : 'offline'}`;
+    const { available: online, connecting } = this.services.api;
     const user = this.services.account.user;
-    this.status.textContent = online ? `● Online${user ? ` · ${user.username}` : ''}` : '● Offline';
-    this.status.title = online ? 'Connected to the community server' : 'Playing offline — community features need the server, everything else works';
+    this.status.className = `server-status ${online ? 'online' : 'offline'}`;
+    if (connecting) {
+      this.status.textContent = '● Connecting…';
+      this.status.title = 'Waking up the community server. This can take up to a minute; you can play in the meantime.';
+    } else {
+      this.status.textContent = online ? `● Online${user ? ` · ${user.username}` : ''}` : '● Offline';
+      this.status.title = online ? 'Connected to the community server' : 'Playing offline — community features need the server, everything else works';
+    }
     this.refresh();
   }
 

@@ -17,7 +17,10 @@ import { heroDef } from '../helpers.js';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const codec = new ShareCodec();
 
-for (const kind of ['memory', 'sqlite']) {
+// MongoDB runs too when a test server is given, e.g. MONGODB_TEST_URI=mongodb://127.0.0.1:27017
+const mongoUri = process.env.MONGODB_TEST_URI ?? '';
+
+for (const kind of ['memory', 'sqlite', ...(mongoUri ? ['mongo'] : [])]) {
   describe(`community server (${kind} storage)`, () => {
     let server;
     let base;
@@ -26,7 +29,7 @@ for (const kind of ['memory', 'sqlite']) {
 
     before(async () => {
       dataDir = await mkdtemp(path.join(os.tmpdir(), 'he-test-'));
-      ({ store } = await createStore({ kind, dataDir }));
+      ({ store } = await createStore({ kind, dataDir, mongoUri, mongoDbName: `he-test-${Date.now()}` }));
       const limiter = () => new RateLimiter({ capacity: 1000, perMinute: 1000 });
       server = http.createServer(createApp({ store, staticDir: path.join(root, 'web'), rateLimiter: limiter(), authRateLimiter: limiter() }));
       await new Promise((resolve) => { server.listen(0, resolve); });
@@ -35,6 +38,7 @@ for (const kind of ['memory', 'sqlite']) {
 
     after(async () => {
       server.close();
+      if (kind === 'mongo') await store.db.dropDatabase();
       await store.close();
       await rm(dataDir, { recursive: true, force: true });
     });

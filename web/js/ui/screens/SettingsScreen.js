@@ -15,10 +15,14 @@ export class SettingsScreen extends Screen {
     this.passwordInput = h('input', { type: 'password', name: 'password', autocomplete: 'current-password', minlength: 8, maxlength: 200, required: true, 'aria-label': 'Password' });
     this.listen('account.changed', () => this.refresh());
     this.listen('account.synced', () => this.refresh());
+    this.listen('server.status', () => this.#loadMetrics());
     this.metrics = null;
-    if (this.services.api.available) {
-      this.services.api.metricsSummary().then((summary) => { this.metrics = summary; this.refresh(); }).catch(() => {});
-    }
+    this.#loadMetrics();
+  }
+
+  #loadMetrics() {
+    if (!this.services.api.available) return;
+    this.services.api.metricsSummary().then((summary) => { this.metrics = summary; this.refresh(); }).catch(() => {});
   }
 
   render() {
@@ -101,7 +105,9 @@ export class SettingsScreen extends Screen {
     if (!api.available) {
       return h('section', { class: 'panel' },
         h('h2', {}, 'Account'),
-        h('p', { class: 'muted' }, user
+        h('p', { class: 'muted' }, api.connecting
+          ? 'Connecting to the community server… It sleeps when nobody has played for a while and can take up to a minute to wake up.'
+          : user
           ? `Signed in as ${user.username}, but the community server isn't reachable. Your progress is saved here and will sync when you're back online.`
           : 'Accounts need the community server, which isn\'t reachable right now. You can keep playing; progress is saved in this browser.'));
     }

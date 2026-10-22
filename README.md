@@ -4,17 +4,21 @@ A browser-based, turn-based team RPG. Build a party of three heroes, fight throu
 
 > Formerly *Warcraft Card Duels* (ASE 420 / ASE 330 individual project, Capstone baseline). The game was rebuilt for the web and all Warcraft-specific content was replaced with original content (see `docs/Business.md` → PESTEL → Legal).
 
+## Play online
+
+**<https://xander-murphy.github.io/Heroic-Encounters/>**: nothing to install. Create an account in **Settings** to save your progress online and share with everyone. (The shared server is set up by following [docs/Hosting.md](docs/Hosting.md).)
+
 ## Quick start
 
-Requires **Node.js 22.5 or newer**. No `npm install` needed — the game and server have zero dependencies.
+Requires **Node.js 22.5 or newer**. No `npm install` needed — the game and local server have zero dependencies.
 
 ```bash
-git clone https://github.com/Xander-Murphy/Warcraft-Card-Duels
-cd Warcraft-Card-Duels
+git clone https://github.com/Xander-Murphy/Heroic-Encounters
+cd Heroic-Encounters
 npm start
 ```
 
-Open <http://localhost:8080>. The community database is created automatically in `data/community.db`.
+Open <http://localhost:8080>. Once the shared server is configured in `web/js/config.js`, your local copy uses it for accounts and the community; otherwise a local database is created in `data/community.db`.
 
 ### Other ways to run it
 
@@ -22,8 +26,9 @@ Open <http://localhost:8080>. The community database is created automatically in
 | --- | --- |
 | Play alone, no server | Serve the `web/` folder with any static server, e.g. `python3 -m http.server -d web 8000`. Everything works except community browsing/codes; share strings and links still work. |
 | Play offline | After one visit, the service worker caches the game. Your progress and imported content live in the browser. |
-| Host for friends | Run `npm start` on any machine/VPS (`PORT`, `HOST`, `DATA_DIR`, `STORAGE=sqlite\|json` env vars). |
-| Static hosting + separate API | Put `web/` on GitHub Pages/itch.io, run the server elsewhere, and set its address in **Settings → Community server** (the API sends CORS headers). |
+| Host the shared server (free) | GitHub Pages + Render + MongoDB Atlas: step by step in [docs/Hosting.md](docs/Hosting.md). |
+| Host for friends | Run `npm start` on any machine/VPS (`PORT`, `HOST`, `DATA_DIR`, `STORAGE=sqlite\|json`, `MONGODB_URI` env vars). |
+| Static hosting + separate API | Put `web/` on GitHub Pages/itch.io, run the server elsewhere, and set its address in `web/js/config.js` or **Settings → Community server** (the API sends CORS headers). |
 
 ## Features
 
@@ -60,7 +65,7 @@ web/                      The game (static files; runs in any browser)
 server/                   Optional Node server: static files + community API
   api/                    ContentController, MetricsController, AccountController
   auth/                   Password hashing (scrypt) and bearer-token sessions
-  storage/                CommunityStore interface; SQLite and JSON implementations
+  storage/                CommunityStore interface; SQLite, MongoDB and JSON implementations
 tests/                    unit/, integration/, api/ (node:test) and e2e/ (Playwright)
 tools/simulate.mjs        Balance simulator (win rates per dungeon)
 docs/                     Architecture, content format, engagement, business, manual, course reports

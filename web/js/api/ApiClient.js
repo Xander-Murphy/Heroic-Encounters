@@ -19,15 +19,24 @@ export class ApiClient {
     this.fetchImpl = fetchImpl;
     this.timeoutMs = timeoutMs;
     this.available = false;
+    this.connecting = false;
     this.token = null; // set by AccountService while signed in
   }
 
-  async checkHealth() {
+  /**
+   * Free hosting puts the server to sleep when nobody is playing, and the
+   * first request waits while it wakes (up to about a minute). So the wait
+   * is long; a server that is really unreachable still fails right away.
+   */
+  async checkHealth({ timeoutMs = 75_000 } = {}) {
+    this.connecting = true;
     try {
-      const health = await this.#request('GET', '/api/health', undefined, 2500);
+      const health = await this.#request('GET', '/api/health', undefined, timeoutMs);
       this.available = health?.ok === true;
     } catch {
       this.available = false;
+    } finally {
+      this.connecting = false;
     }
     return this.available;
   }

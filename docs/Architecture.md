@@ -68,7 +68,7 @@ Every definition — built-in, created, pasted, downloaded or uploaded — goes 
 
 ## Server
 
-`server/app.js` builds a request handler from injected dependencies: `Router`, `ContentController` (publish → validate → dedupe by content hash → short code; fetch, list, like, report), `MetricsController` (anonymous events → key metrics), `AccountController` (register, sign in/out, cloud save), and `StaticFiles`. Storage is the `CommunityStore` interface with `SqliteCommunityStore` (Node's built-in `node:sqlite`) and `MemoryCommunityStore` (optionally snapshotted to JSON). A hosted database would be one more subclass.
+`server/app.js` builds a request handler from injected dependencies: `Router`, `ContentController` (publish → validate → dedupe by content hash → short code; fetch, list, like, report), `MetricsController` (anonymous events → key metrics), `AccountController` (register, sign in/out, cloud save), and `StaticFiles`. Storage is the `CommunityStore` interface with `SqliteCommunityStore` (Node's built-in `node:sqlite`, the local default), `MongoCommunityStore` (used when `MONGODB_URI` is set, for hosts without a persistent disk; the driver is an optional dependency loaded only then) and `MemoryCommunityStore` (optionally snapshotted to JSON). The same API test suite runs against every backend.
 
 ## Accounts & cloud saves
 

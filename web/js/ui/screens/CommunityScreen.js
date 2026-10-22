@@ -19,6 +19,7 @@ export class CommunityScreen extends Screen {
     this.results = null;
     this.loading = false;
     this.error = null;
+    this.listen('server.status', () => this.#load());
     this.#load();
   }
 
@@ -50,6 +51,10 @@ export class CommunityScreen extends Screen {
   }
 
   #offlineNote() {
+    if (this.services.api.connecting) {
+      return emptyState('⏳', 'Connecting to the community server…',
+        'The server sleeps when nobody has played for a while and takes up to a minute to wake up. You can import share strings above in the meantime.');
+    }
     return emptyState('🔌', 'Community server not connected',
       'You\'re playing offline (for example from a static host or a local file server). Share strings and links still work — paste them above. To browse and publish, start the game with "npm start" or set a server address in Settings.');
   }
