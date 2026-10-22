@@ -72,7 +72,10 @@ export class App {
     });
     window.addEventListener('hashchange', () => this.#checkImportHash());
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') services.analytics.flush();
+      if (document.visibilityState === 'hidden') {
+        services.analytics.flush();
+        services.account.flush();
+      }
     });
 
     this.navigate('home', {}, { replace: true });
@@ -81,6 +84,7 @@ export class App {
     await services.api.checkHealth();
     this.#updateServerStatus();
     services.analytics.flush();
+    services.account.sync();
     this.#checkImportHash();
   }
 
@@ -137,7 +141,8 @@ export class App {
   #updateServerStatus() {
     const online = this.services.api.available;
     this.status.className = `server-status ${online ? 'online' : 'offline'}`;
-    this.status.textContent = online ? '● Online' : '● Offline';
+    const user = this.services.account.user;
+    this.status.textContent = online ? `● Online${user ? ` · ${user.username}` : ''}` : '● Offline';
     this.status.title = online ? 'Connected to the community server' : 'Playing offline — community features need the server, everything else works';
     this.refresh();
   }
@@ -147,6 +152,14 @@ export class App {
     events.on('achievement.unlocked', ({ name, icon }) => this.toaster.show(name, { icon, title: 'Achievement unlocked', tone: 'gold' }));
     events.on('hero.unlocked', ({ name }) => this.toaster.show(`${name} has joined your roster!`, { icon: '🎉', title: 'New hero', tone: 'gold', duration: 5000 }));
     events.on('level.up', ({ level }) => this.toaster.show(`You reached level ${level}.`, { icon: '⭐', title: 'Level up', tone: 'gold' }));
+    events.on('account.changed', () => this.#updateServerStatus());
+    events.on('account.synced', ({ changed }) => {
+      // Progress from another device arrived; redraw, but never in the middle of a fight.
+      if (changed && !(this.current instanceof CombatScreen)) this.refresh();
+    });
+    events.on('account.syncFailed', ({ expired }) => {
+      if (expired) this.toaster.show('You were signed out. Sign in again in Settings to keep syncing.', { icon: '🔑', tone: 'info' });
+    });
   }
 
   #checkImportHash() {

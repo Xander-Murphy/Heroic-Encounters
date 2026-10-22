@@ -20,9 +20,10 @@ const text = (value, max) => (typeof value === 'string' ? value.trim().slice(0, 
  * uses, so nothing malformed is ever stored or handed to other players.
  */
 export class ContentController {
-  constructor({ store, rateLimiter, codec = new ShareCodec() }) {
+  constructor({ store, rateLimiter, authenticator = null, codec = new ShareCodec() }) {
     this.store = store;
     this.rateLimiter = rateLimiter;
+    this.authenticator = authenticator;
     this.codec = codec;
   }
 
@@ -38,6 +39,7 @@ export class ContentController {
 
   async publish({ request, response, ip }) {
     this.#limit(ip);
+    const user = await this.authenticator?.userFor(request);
     const body = await readJson(request, MAX_SHARE_LENGTH + 10_000);
     const shareString = text(body.shareString, MAX_SHARE_LENGTH);
     if (!shareString) throw new HttpError(400, 'shareString is required.');
@@ -69,12 +71,14 @@ export class ContentController {
       hash,
       kind,
       title: text(body.title, LIMITS.name) || bundle.title || bundle.items[0].name,
-      author: text(body.author, LIMITS.name) || bundle.author,
+      // Signed-in uploads carry the account name, so nobody can publish as someone else.
+      author: user?.username ?? (text(body.author, LIMITS.name) || bundle.author),
       description: text(body.description, LIMITS.description),
       shareString,
       itemCount: bundle.items.length,
       itemIds: bundle.items.map((item) => item.definition.id),
       createdAt: new Date().toISOString(),
+      ownerId: user?.id ?? null,
     });
     sendJson(response, 201, { code: entry.code, existing: false });
   }
@@ -97,11 +101,10 @@ export class ContentController {
 
   async like({ request, response, params, ip }) {
     this.#limit(ip);
-    const { installId } = await readJson(request, 2000);
-    if (!INSTALL_ID_PATTERN.test(installId ?? '')) throw new HttpError(400, 'installId is required.');
+    const voter = await this.#voter(request);
     const code = this.#code(params.code);
     if (!await this.store.getByCode(code)) throw new HttpError(404, 'No content was found with that code.');
-    sendJson(response, 200, await this.store.addLike(code, installId));
+    sendJson(response, 200, await this.store.addLike(code, voter));
   }
 
   async download({ response, params, ip }) {
@@ -112,10 +115,18 @@ export class ContentController {
 
   async report({ request, response, params, ip }) {
     this.#limit(ip);
-    const { installId } = await readJson(request, 2000);
-    if (!INSTALL_ID_PATTERN.test(installId ?? '')) throw new HttpError(400, 'installId is required.');
-    const reports = await this.store.addReport(this.#code(params.code), installId);
+    const voter = await this.#voter(request);
+    const reports = await this.store.addReport(this.#code(params.code), voter);
     sendJson(response, 200, { ok: true, reports });
+  }
+
+  /** Who a like or report counts for: the account when signed in (one per person), else the install. */
+  async #voter(request) {
+    const user = await this.authenticator?.userFor(request);
+    const { installId } = await readJson(request, 2000);
+    if (user) return `user:${user.id}`;
+    if (!INSTALL_ID_PATTERN.test(installId ?? '')) throw new HttpError(400, 'installId is required.');
+    return installId;
   }
 
   #code(raw) {

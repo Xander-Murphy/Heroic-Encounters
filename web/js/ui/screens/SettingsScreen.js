@@ -1,13 +1,20 @@
+import { DEFAULT_SERVER_URL } from '../../config.js';
 import { copyToClipboard, h, percent } from '../dom.js';
 import { Screen, screenHeader } from '../Screen.js';
 import { Modal } from '../components/Modal.js';
 
-/** Name, accessibility, analytics consent, server address, save backup and the server's key metrics. */
+/** Account, name, accessibility, analytics consent, server address, save backup and the server's key metrics. */
 export class SettingsScreen extends Screen {
   static nav = 'settings';
   static title = 'Settings';
 
   enter() {
+    this.busy = false;
+    // Kept across re-renders (e.g. when metrics arrive) so typing isn't wiped.
+    this.usernameInput = h('input', { type: 'text', name: 'username', autocomplete: 'username', maxlength: 24, required: true, 'aria-label': 'Username' });
+    this.passwordInput = h('input', { type: 'password', name: 'password', autocomplete: 'current-password', minlength: 8, maxlength: 200, required: true, 'aria-label': 'Password' });
+    this.listen('account.changed', () => this.refresh());
+    this.listen('account.synced', () => this.refresh());
     this.metrics = null;
     if (this.services.api.available) {
       this.services.api.metricsSummary().then((summary) => { this.metrics = summary; this.refresh(); }).catch(() => {});
@@ -21,12 +28,14 @@ export class SettingsScreen extends Screen {
     return [
       screenHeader('Settings'),
       h('div', { class: 'settings-grid' },
+        this.#accountPanel(),
+
         h('section', { class: 'panel' },
           h('h2', {}, 'Player'),
           h('label', { class: 'field' }, 'Creator name (shown on content you share)', nameInput),
           h('button', {
             onclick: () => {
-              profile.data.playerName = nameInput.value.trim().slice(0, 32);
+              profile.setPlayerName(nameInput.value);
               this.services.saveProfile();
               this.app.toaster.show('Name saved.', { icon: '✅' });
             },
@@ -52,7 +61,7 @@ export class SettingsScreen extends Screen {
 
         h('section', { class: 'panel' },
           h('h2', {}, 'Backup & devices'),
-          h('p', {}, 'Your progress and every hero, enemy and dungeon you made or imported live in this browser. Make a backup string to move them to another browser or keep them safe.'),
+          h('p', {}, 'Your progress and every hero, enemy and dungeon you made or imported live in this browser (and in your account, if you\'re signed in). Make a backup string to move them without an account or keep them safe.'),
           h('div', { class: 'row-left' },
             h('button', { onclick: () => this.#exportSave() }, '📤 Copy backup'),
             h('button', { onclick: () => this.#importSave() }, '📥 Restore backup')),
@@ -61,7 +70,9 @@ export class SettingsScreen extends Screen {
 
         h('section', { class: 'panel' },
           h('h2', {}, 'Community server'),
-          h('p', { class: 'muted' }, 'Leave empty to use the server this page came from. Set an address (e.g. https://my-server.example) if you host the game files somewhere else, like GitHub Pages.'),
+          h('p', { class: 'muted' }, DEFAULT_SERVER_URL
+            ? `Leave empty to use the shared server (${DEFAULT_SERVER_URL}). Set an address to use a different one, e.g. one you host for friends.`
+            : 'Leave empty to use the server this page came from. Set an address (e.g. https://my-server.example) if you host the game files somewhere else, like GitHub Pages.'),
           this.#serverForm()),
 
         this.metrics ? this.#metricsPanel() : null),
@@ -76,12 +87,76 @@ export class SettingsScreen extends Screen {
       onsubmit: async (event) => {
         event.preventDefault();
         saveSettings({ serverUrl: input.value.trim() });
-        api.baseUrl = input.value.trim().replace(/\/+$/, '');
+        api.baseUrl = (input.value.trim() || DEFAULT_SERVER_URL).replace(/\/+$/, '');
         const ok = await api.checkHealth();
         this.app.toaster.show(ok ? 'Connected to the community server.' : 'Could not reach that server. Playing offline.', { icon: ok ? '🌐' : '🔌', tone: ok ? 'good' : 'info' });
         location.reload();
       },
     }, input, h('button', { type: 'submit' }, 'Save & reconnect'));
+  }
+
+  #accountPanel() {
+    const { api, account } = this.services;
+    const user = account.user;
+    if (!api.available) {
+      return h('section', { class: 'panel' },
+        h('h2', {}, 'Account'),
+        h('p', { class: 'muted' }, user
+          ? `Signed in as ${user.username}, but the community server isn't reachable. Your progress is saved here and will sync when you're back online.`
+          : 'Accounts need the community server, which isn\'t reachable right now. You can keep playing; progress is saved in this browser.'));
+    }
+
+    if (user) {
+      const synced = account.lastSyncedAt ? `Last synced ${new Date(account.lastSyncedAt).toLocaleString()}.` : 'Not synced yet.';
+      return h('section', { class: 'panel' },
+        h('h2', {}, 'Account'),
+        h('p', {}, 'Signed in as ', h('b', {}, user.username), '. Your progress and creations sync to your account automatically, so you can pick up on any device.'),
+        h('p', { class: 'muted' }, synced),
+        h('div', { class: 'row-left' },
+          h('button', { disabled: this.busy, onclick: () => this.#accountAction(async () => {
+            const ok = await account.sync();
+            this.app.toaster.show(ok ? 'Progress synced.' : 'Could not sync right now.', { icon: ok ? '☁️' : '🔌', tone: ok ? 'good' : 'info' });
+          }) }, '☁️ Sync now'),
+          h('button', { disabled: this.busy, onclick: () => this.#accountAction(async () => {
+            await account.logout();
+            this.app.toaster.show('Signed out. Your progress stays in this browser.', { icon: '👋' });
+          }) }, 'Sign out')));
+    }
+
+    const { usernameInput: username, passwordInput: password } = this;
+    const submit = (mode) => this.#accountAction(async () => {
+      const signedIn = mode === 'register'
+        ? await account.register(username.value.trim(), password.value)
+        : await account.login(username.value.trim(), password.value);
+      password.value = '';
+      this.app.toaster.show(mode === 'register' ? `Welcome, ${signedIn.username}! Your progress now saves to your account.` : `Signed in as ${signedIn.username}.`, { icon: '🔑', tone: 'good' });
+    });
+    return h('form', {
+      class: 'panel',
+      onsubmit: (event) => {
+        event.preventDefault();
+        submit(event.submitter?.value === 'register' ? 'register' : 'login');
+      },
+    },
+    h('h2', {}, 'Account'),
+    h('p', {}, 'Sign in to save your progress and creations online and play on any device. Anything already in this browser is added to the account.'),
+    h('label', { class: 'field' }, 'Username', username),
+    h('label', { class: 'field' }, 'Password (at least 8 characters)', password),
+    h('div', { class: 'row-left' },
+      h('button', { class: 'primary', type: 'submit', value: 'login', disabled: this.busy }, 'Sign in'),
+      h('button', { type: 'submit', value: 'register', disabled: this.busy }, 'Create account')));
+  }
+
+  async #accountAction(task) {
+    this.busy = true;
+    this.refresh();
+    try {
+      await task();
+    } catch (error) {
+      this.app.toaster.error(error.message);
+    }
+    this.busy = false;
+    this.refresh();
   }
 
   #metricsPanel() {
@@ -135,9 +210,13 @@ export class SettingsScreen extends Screen {
   }
 
   async #reset() {
-    const sure = await Modal.confirm('Reset everything?', 'Your level, achievements, and every hero, enemy and dungeon you made or imported will be deleted from this browser. Make a backup first if you might want them back.', { confirmLabel: 'Delete everything', danger: true });
+    const signedIn = Boolean(this.services.account.user);
+    const sure = await Modal.confirm('Reset everything?', signedIn
+      ? 'You\'ll be signed out, and your level, achievements and content will be deleted from this browser. Your account keeps its copy: sign in again to get it back.'
+      : 'Your level, achievements, and every hero, enemy and dungeon you made or imported will be deleted from this browser. Make a backup first if you might want them back.', { confirmLabel: 'Delete everything', danger: true });
     if (!sure) return;
-    ['profile', 'library', 'settings'].forEach((key) => this.services.adapter.remove(key));
+    if (signedIn) await this.services.account.logout();
+    ['profile', 'library', 'library-deleted', 'settings', 'account'].forEach((key) => this.services.adapter.remove(key));
     location.reload();
   }
 }

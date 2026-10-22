@@ -18,6 +18,9 @@ export class MemoryCommunityStore extends CommunityStore {
     this.eventCounts = {};
     this.reachedBoss = 0;
     this.heroUnlocks = new Map();
+    this.users = new Map(); // id -> user
+    this.sessions = new Map(); // tokenHash -> session
+    this.saves = new Map(); // userId -> { data, updatedAt }
     this.saveTimer = null;
   }
 
@@ -28,7 +31,7 @@ export class MemoryCommunityStore extends CommunityStore {
   }
 
   async insertContent(entry) {
-    const stored = { downloads: 0, likes: 0, reports: 0, ...entry };
+    const stored = { downloads: 0, likes: 0, reports: 0, ownerId: null, ...entry };
     this.content.set(stored.code, stored);
     this.#scheduleSave();
     return { ...stored };
@@ -106,6 +109,54 @@ export class MemoryCommunityStore extends CommunityStore {
     };
   }
 
+  async createUser(user) {
+    if (await this.getUserByName(user.usernameKey)) return null;
+    this.users.set(user.id, { ...user });
+    this.#scheduleSave();
+    return { ...user };
+  }
+
+  async getUserByName(usernameKey) {
+    const found = [...this.users.values()].find((user) => user.usernameKey === usernameKey);
+    return found ? { ...found } : null;
+  }
+
+  async getUserById(id) {
+    const found = this.users.get(id);
+    return found ? { ...found } : null;
+  }
+
+  async createSession(session) {
+    this.sessions.set(session.tokenHash, { ...session });
+    this.#scheduleSave();
+  }
+
+  async getSession(tokenHash) {
+    const found = this.sessions.get(tokenHash);
+    return found ? { ...found } : null;
+  }
+
+  async deleteSession(tokenHash) {
+    if (this.sessions.delete(tokenHash)) this.#scheduleSave();
+  }
+
+  async deleteExpiredSessions(nowIso) {
+    for (const [tokenHash, session] of this.sessions) {
+      if (session.expiresAt < nowIso) this.sessions.delete(tokenHash);
+    }
+    this.#scheduleSave();
+  }
+
+  async getSave(userId) {
+    const found = this.saves.get(userId);
+    return found ? structuredClone(found) : null;
+  }
+
+  async putSave(userId, data, updatedAt) {
+    this.saves.set(userId, structuredClone({ data, updatedAt }));
+    this.#scheduleSave();
+  }
+
   async close() {
     clearTimeout(this.saveTimer);
     await this.#save();
@@ -129,6 +180,9 @@ export class MemoryCommunityStore extends CommunityStore {
       eventCounts: this.eventCounts,
       reachedBoss: this.reachedBoss,
       heroUnlocks: [...this.heroUnlocks],
+      users: [...this.users.values()],
+      sessions: [...this.sessions.values()],
+      saves: [...this.saves],
     };
     const temporary = `${this.filePath}.tmp`;
     await writeFile(temporary, JSON.stringify(snapshot));
@@ -146,5 +200,8 @@ export class MemoryCommunityStore extends CommunityStore {
     this.eventCounts = snapshot.eventCounts ?? {};
     this.reachedBoss = snapshot.reachedBoss ?? 0;
     this.heroUnlocks = new Map(snapshot.heroUnlocks ?? []);
+    this.users = new Map((snapshot.users ?? []).map((user) => [user.id, user]));
+    this.sessions = new Map((snapshot.sessions ?? []).map((session) => [session.tokenHash, session]));
+    this.saves = new Map(snapshot.saves ?? []);
   }
 }

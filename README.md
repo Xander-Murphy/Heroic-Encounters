@@ -32,6 +32,7 @@ Open <http://localhost:8080>. The community database is created automatically in
 - **Workshop** — hero, enemy (incl. bosses with phases) and dungeon editors with live card preview, ability templates and a power rating (Fair / Strong / Overtuned) relative to the built-in roster.
 - **Sharing** — `HE1.…` compressed share strings and links (no server needed), or publish to the community database for a code like `K7F2-QX9P`. Imports are previewed and validated before anything changes; a dungeon automatically bundles the custom enemies it needs.
 - **Community** — browse, search, sort by popular/newest, import, like.
+- **Accounts** (optional) — sign up in Settings to save progress and creations to the server and continue on any device. The game stays local-first: saves sync in the background and devices are merged, never overwritten. Uploads from a signed-in player carry their account name.
 - **Engagement** (from `docs/Business.md`) — renown & levels, unlockable heroes, 17 achievements, seeded daily challenge with streaks, hero mastery, enemy codex, and the business plan's key metrics (DAU, 1/7-day return rate, run completion, heroes unlocked) collected anonymously. See `docs/Engagement.md`.
 - Keyboard play in combat (1–5, Enter, Esc), reduced-motion support, responsive down to phone width, light/dark theme.
 
@@ -48,14 +49,17 @@ web/                      The game (static files; runs in any browser)
     content/              Built-in content (core/), schema validation, factory, library, power rating
     sharing/              Share-string codec, bundles, import/export service
     progression/          Profile, achievements, unlocks, daily challenge
-    persistence/          Storage adapters (localStorage / memory), save backup
+    persistence/          Storage adapters (localStorage / memory), save backup, cloud-save merge
+    account/              Sign-in and background sync of the cloud save
     analytics/            Engagement metrics (event sinks)
     api/                  Community server client
+    config.js             Default community server address (empty = same origin)
     ui/                   App shell, screens/, workshop/ editors, components/
     services.js           Composition root (wires everything together)
     main.js               Entry point
 server/                   Optional Node server: static files + community API
-  api/                    ContentController, MetricsController
+  api/                    ContentController, MetricsController, AccountController
+  auth/                   Password hashing (scrypt) and bearer-token sessions
   storage/                CommunityStore interface; SQLite and JSON implementations
 tests/                    unit/, integration/, api/ (node:test) and e2e/ (Playwright)
 tools/simulate.mjs        Balance simulator (win rates per dungeon)

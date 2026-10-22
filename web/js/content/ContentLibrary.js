@@ -25,15 +25,19 @@ export function newContentId(kind) {
  * Built-in content is read-only. Player content is validated on the way in
  * and persisted through an injected store ({ load(), save(entries) }), so the
  * library doesn't care whether that is localStorage, IndexedDB or memory.
+ * An optional `deletedStore` remembers when content was removed, so account
+ * sync can tell a deletion apart from content another device hasn't seen.
  * Listeners are notified after every change (Observer).
  */
 export class ContentLibrary {
   #entries = new Map(); // id -> { definition, meta }
   #prototypes = new Map(); // id -> engine object (built lazily, cloned on use)
   #listeners = new Set();
+  #deleted = {}; // id -> when it was removed
 
-  constructor({ store = null, factory = new ContentFactory() } = {}) {
+  constructor({ store = null, deletedStore = null, factory = new ContentFactory() } = {}) {
     this.store = store;
+    this.deletedStore = deletedStore;
     this.factory = factory;
     for (const definition of [...CORE_HEROES, ...CORE_ENEMIES, ...CORE_DUNGEONS]) {
       const { valid, errors, value } = validateDefinition(definition);
@@ -154,6 +158,10 @@ export class ContentLibrary {
       },
     });
     this.#prototypes.delete(value.id);
+    if (value.id in this.#deleted) {
+      delete this.#deleted[value.id];
+      this.deletedStore?.save(this.#deleted);
+    }
     this.#persist();
     return { ok: true, errors: [], definition: value, replaced: Boolean(previous) };
   }
@@ -168,8 +176,27 @@ export class ContentLibrary {
   remove(id) {
     if (this.isCore(id) || !this.#entries.delete(id)) return false;
     this.#prototypes.delete(id);
+    this.#deleted[id] = Date.now();
+    this.deletedStore?.save(this.#deleted);
     this.#persist();
     return true;
+  }
+
+  /** { id: timestamp } of removed player content. */
+  deletions() {
+    return { ...this.#deleted };
+  }
+
+  /** Swap all player content for `entries` (e.g. a merged account save). */
+  replaceCustom(entries, deleted = {}) {
+    for (const { definition } of this.customEntries()) {
+      this.#entries.delete(definition.id);
+      this.#prototypes.delete(definition.id);
+    }
+    this.#addCustom(entries);
+    this.#deleted = { ...deleted };
+    this.deletedStore?.save(this.#deleted);
+    this.#persist();
   }
 
   /** Content that depends on `id` (e.g. dungeons using a custom enemy). */
@@ -187,7 +214,11 @@ export class ContentLibrary {
   // --- Persistence ---------------------------------------------------------
 
   #loadCustom() {
-    const saved = this.store?.load() ?? [];
+    this.#addCustom(this.store?.load() ?? []);
+    this.#deleted = { ...(this.deletedStore?.load() ?? {}) };
+  }
+
+  #addCustom(saved) {
     for (const entry of saved) {
       const { valid, value } = validateDefinition(entry?.definition);
       if (valid && !this.isCore(value.id)) this.#entries.set(value.id, { definition: value, meta: { ...entry.meta } });

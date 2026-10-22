@@ -41,7 +41,7 @@ export class HomeScreen extends Screen {
         event.preventDefault();
         const name = input.value.trim();
         if (!name) return;
-        profile.data.playerName = name;
+        profile.setPlayerName(name);
         this.services.saveProfile();
         this.refresh();
       },

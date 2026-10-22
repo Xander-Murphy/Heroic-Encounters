@@ -27,7 +27,8 @@ for (const kind of ['memory', 'sqlite']) {
     before(async () => {
       dataDir = await mkdtemp(path.join(os.tmpdir(), 'he-test-'));
       ({ store } = await createStore({ kind, dataDir }));
-      server = http.createServer(createApp({ store, staticDir: path.join(root, 'web'), rateLimiter: new RateLimiter({ capacity: 1000, perMinute: 1000 }) }));
+      const limiter = () => new RateLimiter({ capacity: 1000, perMinute: 1000 });
+      server = http.createServer(createApp({ store, staticDir: path.join(root, 'web'), rateLimiter: limiter(), authRateLimiter: limiter() }));
       await new Promise((resolve) => { server.listen(0, resolve); });
       base = `http://localhost:${server.address().port}`;
     });
@@ -78,6 +79,56 @@ for (const kind of ['memory', 'sqlite']) {
       const second = await (await post(`/api/content/${code}/like`, { installId: 'i-abcdef123' })).json();
       assert.equal(first.likes, 1);
       assert.equal(second.alreadyLiked, true);
+    });
+
+    const authed = (token) => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token}` });
+
+    it('registers, signs in and out', async () => {
+      const created = await post('/api/auth/register', { username: 'Ana_1', password: 'correct horse' });
+      assert.equal(created.status, 201);
+      const { token, user } = await created.json();
+      assert.equal(user.username, 'Ana_1');
+      assert.equal((await post('/api/auth/register', { username: 'ana_1', password: 'another one' })).status, 409);
+      assert.equal((await post('/api/auth/register', { username: 'x', password: 'correct horse' })).status, 400);
+      assert.equal((await post('/api/auth/login', { username: 'ANA_1', password: 'wrong password' })).status, 401);
+      assert.equal((await post('/api/auth/login', { username: 'nobody', password: 'wrong password' })).status, 401);
+
+      const login = await (await post('/api/auth/login', { username: 'ANA_1', password: 'correct horse' })).json();
+      assert.notEqual(login.token, token);
+      const me = await (await fetch(`${base}/api/auth/me`, { headers: authed(login.token) })).json();
+      assert.equal(me.user.id, user.id);
+
+      await fetch(`${base}/api/auth/logout`, { method: 'POST', headers: authed(login.token), body: '{}' });
+      assert.equal((await fetch(`${base}/api/auth/me`, { headers: authed(login.token) })).status, 401);
+      assert.equal((await fetch(`${base}/api/auth/me`, { headers: authed(token) })).status, 200, 'other sessions stay signed in');
+    });
+
+    it('merges saves from two devices', async () => {
+      const { token } = await (await post('/api/auth/register', { username: 'Syncer', password: 'password123' })).json();
+      const put = (save) => fetch(`${base}/api/me/save`, { method: 'PUT', headers: authed(token), body: JSON.stringify({ save }) }).then((response) => response.json());
+      assert.equal((await fetch(`${base}/api/me/save`)).status, 401);
+
+      await put({ profile: { renown: 200, achievements: { a: 1 } }, library: [{ definition: heroDef({ id: 'h-cloud-1' }), meta: { updatedAt: 5 } }] });
+      const merged = await put({ profile: { renown: 50, achievements: { b: 2 } } });
+      assert.equal(merged.save.profile.renown, 200);
+      assert.deepEqual(Object.keys(merged.save.profile.achievements).sort(), ['a', 'b']);
+      assert.deepEqual(merged.save.library.map((item) => item.definition.id), ['h-cloud-1']);
+
+      const stored = await (await fetch(`${base}/api/me/save`, { headers: authed(token) })).json();
+      assert.deepEqual(stored.save, merged.save);
+    });
+
+    it('credits signed-in uploads to the account and counts one like per account', async () => {
+      const { token } = await (await post('/api/auth/register', { username: 'Maker', password: 'password123' })).json();
+      const shareString = await shareOf([heroDef({ id: 'h-api-owned' })]);
+      const publish = await fetch(`${base}/api/content`, { method: 'POST', headers: authed(token), body: JSON.stringify({ shareString, author: 'Someone Else' }) });
+      const { code } = await publish.json();
+      const entry = await (await fetch(`${base}/api/content/${code}`)).json();
+      assert.equal(entry.author, 'Maker');
+
+      const like = (installId) => fetch(`${base}/api/content/${code}/like`, { method: 'POST', headers: authed(token), body: JSON.stringify({ installId }) }).then((response) => response.json());
+      assert.equal((await like('i-device-one')).likes, 1);
+      assert.equal((await like('i-device-two')).alreadyLiked, true);
     });
 
     it('ingests anonymous metrics and summarizes them', async () => {

@@ -1,3 +1,10 @@
+export class ApiError extends Error {
+  constructor(status, message) {
+    super(message);
+    this.status = status;
+  }
+}
+
 /**
  * Talks to the optional community server.
  *
@@ -12,6 +19,7 @@ export class ApiClient {
     this.fetchImpl = fetchImpl;
     this.timeoutMs = timeoutMs;
     this.available = false;
+    this.token = null; // set by AccountService while signed in
   }
 
   async checkHealth() {
@@ -59,19 +67,44 @@ export class ApiClient {
     return this.#request('GET', '/api/metrics/summary');
   }
 
+  // --- Accounts -------------------------------------------------------------
+
+  register(username, password) {
+    return this.#request('POST', '/api/auth/register', { username, password });
+  }
+
+  login(username, password) {
+    return this.#request('POST', '/api/auth/login', { username, password });
+  }
+
+  logout() {
+    return this.#request('POST', '/api/auth/logout', {});
+  }
+
+  me() {
+    return this.#request('GET', '/api/auth/me');
+  }
+
+  /** Send the local save; the server merges it with the account's and returns the result. */
+  syncSave(save) {
+    return this.#request('PUT', '/api/me/save', { save }, 15_000);
+  }
+
   async #request(method, path, body, timeoutMs = this.timeoutMs) {
     if (!this.fetchImpl) throw new Error('Network is unavailable.');
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
+      const headers = body === undefined ? {} : { 'Content-Type': 'application/json' };
+      if (this.token) headers.Authorization = `Bearer ${this.token}`;
       const response = await this.fetchImpl(this.baseUrl + path, {
         method,
-        headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
+        headers,
         body: body === undefined ? undefined : JSON.stringify(body),
         signal: controller.signal,
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || `Server error (${response.status})`);
+      if (!response.ok) throw new ApiError(response.status, data.error || `Server error (${response.status})`);
       return data;
     } catch (error) {
       if (error.name === 'AbortError') throw new Error('The community server took too long to answer.');
