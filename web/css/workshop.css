@@ -1,0 +1,57 @@
+/* ==========================================================================
+   Workshop editors: form + sticky live preview.
+   ========================================================================== */
+.editor-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; }
+.editor-form { min-width: 0; }
+.editor-preview { position: sticky; top: 70px; background: var(--card-background); border: 2px solid var(--border); border-radius: var(--radius); padding: 10px 14px; max-height: calc(100vh - 90px); overflow-y: auto; }
+.editor-preview h2 { margin-top: 4px; }
+.preview-card { display: flex; justify-content: center; }
+.editor-actions { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 10px; position: sticky; bottom: -10px; background: var(--card-background); padding: 8px 0; }
+.power-meter { margin: 6px 0; }
+
+.form-section { background: var(--card-background); border: 2px solid var(--border); border-radius: var(--radius); padding: 4px 14px 10px; margin-bottom: 12px; }
+.form-section > summary { cursor: pointer; font: bold 1.1rem var(--font-body); color: var(--gold); padding: 8px 0; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 4px 14px; }
+.form-grid > .wide, .form-grid > .checkbox-group, .form-grid > .field:has(textarea) { grid-column: 1 / -1; }
+.number-field { display: grid; grid-template-columns: 80px auto 1fr; gap: 6px; align-items: center; }
+.number-field input[type='number'] { width: 80px; }
+.number-field .suffix { color: var(--text-muted); }
+.checkboxes { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.checkbox-group { border: none; padding: 0; margin: 6px 0; }
+.checkbox-group legend { font-weight: bold; font-size: 0.92rem; padding: 0; margin-bottom: 4px; }
+
+.swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+.swatch { width: 30px; height: 30px; border-radius: 50%; border: 3px solid; padding: 0; margin: 0; }
+.swatch.active { outline: 3px solid var(--gold); outline-offset: 2px; }
+.portrait-input { width: 80px; font-size: 1.6rem; text-align: center; padding: 2px; }
+.portrait-choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); gap: 2px; margin-top: 6px; max-width: 420px; }
+.portrait-choice { font-size: 1.3rem; padding: 2px; margin: 0; border-width: 1px; }
+details > summary { cursor: pointer; }
+
+.ability-list { display: flex; flex-direction: column; gap: 12px; }
+.ability-editor { position: relative; border: 2px solid var(--border); border-radius: 8px; padding: 8px 12px 10px; margin: 0; background: #0002; min-width: 0; }
+.ability-editor > legend { font-weight: bold; color: var(--gold); padding: 0 6px; }
+.ability-tools { position: absolute; top: -2px; right: 8px; display: flex; }
+.effects { margin-top: 8px; }
+.effects h4 { margin: 4px 0; font-size: 0.95rem; }
+.effect-row { border-left: 3px solid var(--gold); padding: 2px 0 6px 10px; margin: 6px 0; }
+.effect-head { display: flex; align-items: flex-end; gap: 8px; }
+.effect-head .field { flex: 1; max-width: 280px; }
+.status-editor { margin-top: 4px; }
+.ability-adder { border: 2px dashed var(--border); border-radius: 8px; padding: 10px; }
+.ability-adder label { font-weight: bold; display: block; margin-bottom: 4px; }
+.preset-grid { display: flex; flex-wrap: wrap; gap: 2px; }
+
+.wave-editor .pool { margin-top: 6px; }
+.pool-group { margin: 4px 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.enemy-chip { font-size: 0.85rem; padding: 3px 9px; margin: 0; border-radius: 999px; border-width: 1px; }
+.enemy-chip.active { background: var(--gold); color: #1a1409; border-color: var(--gold); font-weight: bold; }
+.wave-summary { padding-left: 22px; }
+.wave-summary li { margin: 4px 0; font-size: 1.1rem; }
+.dungeon-preview .dungeon-card { width: 100%; }
+
+@media (max-width: 900px) {
+  .editor-layout { grid-template-columns: 1fr; }
+  .editor-preview { position: static; max-height: none; order: -1; }
+}

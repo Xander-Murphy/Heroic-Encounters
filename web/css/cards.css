@@ -1,0 +1,130 @@
+/* ==========================================================================
+   Trading-card look (from the original HTML prototype).
+   Portrait oval, name ribbon, parchment text box, class banner, speed gem,
+   defense shield, attack and health badges.
+   ========================================================================== */
+.tcg-card {
+  --frame: #363a42; --light: #9aa0aa; --dark: #565c68;
+  position: relative; flex: 0 0 220px; width: 220px; min-height: 318px; display: flex; flex-direction: column;
+  padding: 12px 12px 26px; border: 6px solid var(--frame); border-radius: 14px;
+  background: linear-gradient(160deg, var(--light), var(--dark));
+  box-shadow: 0 3px 8px #0009, inset 0 0 0 2px #ffffff55;
+  color: #2a1d0a; font-size: 13px; text-align: center; transition: transform 0.15s, box-shadow 0.15s;
+  margin: 14px 6px 18px;
+}
+.tcg-card.clickable { cursor: pointer; }
+.tcg-card.clickable:hover { transform: translateY(-4px); }
+.tcg-card.in-team { box-shadow: 0 0 0 4px var(--gold), 0 0 18px var(--gold); }
+
+.tcg-card.selected, .tcg-card.selected:hover {
+  transform: translateY(-6px) scale(1.04); z-index: 5;
+  animation: selected-pulse 1.2s ease-in-out infinite;
+}
+.tcg-card.selected::after {
+  content: '▼ ACTING'; position: absolute; top: -34px; left: 50%; transform: translateX(-50%);
+  background: #4db8ff; color: #06263d; font: bold 12px var(--font-ui); letter-spacing: 1px;
+  padding: 3px 12px; border-radius: 12px; white-space: nowrap; box-shadow: 0 2px 6px #0008;
+}
+.tcg-card.selected.ally-target { animation: none; box-shadow: 0 0 0 4px #fff, 0 0 0 8px #5fd16a, 0 0 30px 10px #5fd16a; }
+@keyframes selected-pulse {
+  0%, 100% { box-shadow: 0 0 0 4px #fff, 0 0 0 8px #4db8ff, 0 0 24px 8px #4db8ff; }
+  50% { box-shadow: 0 0 0 4px #fff, 0 0 0 8px #4db8ff, 0 0 44px 18px #4db8ff; }
+}
+.tcg-card.targetable { cursor: pointer; box-shadow: 0 0 0 4px var(--red), 0 0 18px var(--red); }
+.tcg-card.targetable:hover { transform: translateY(-4px) scale(1.02); }
+.tcg-card.ally-target { cursor: pointer; box-shadow: 0 0 0 4px #5fd16a, 0 0 18px #5fd16a; }
+.tcg-card.defeated { opacity: 0.35; filter: grayscale(0.8); }
+.tcg-card.locked { filter: grayscale(0.85) brightness(0.65); }
+
+.tcg-portrait {
+  align-self: center; width: 168px; height: 124px; border-radius: 50%; display: flex;
+  align-items: center; justify-content: center; border: 6px solid #cdb87c;
+  border-color: #e6d49a #a58b4c #8f7638 #c9b273;
+  background: radial-gradient(circle at 50% 35%, #fffd, var(--light) 80%);
+  box-shadow: inset 0 0 0 3px var(--frame), 0 4px 8px #0007; overflow: hidden;
+}
+.tcg-portrait span { font-size: 60px; line-height: 1; filter: drop-shadow(0 3px 2px #0006); }
+.tcg-ribbon {
+  position: relative; z-index: 2; margin: -16px -8px 0; padding: 6px 18px; font-weight: bold; font-size: 16px;
+  background: linear-gradient(#f3e8c4, #d8c690); text-shadow: 0 1px 0 #fff8;
+  clip-path: polygon(0 0, 100% 0, 97% 50%, 100% 100%, 0 100%, 3% 50%);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tcg-card .health-bar {
+  position: relative; z-index: 2; height: 14px; margin: 5px 14px -10px;
+  border: 2px solid var(--frame); border-radius: 8px; background: #000b; box-shadow: 0 2px 3px #0006; overflow: hidden;
+}
+.health-bar > div { height: 100%; background: var(--green); transition: width 0.4s ease; }
+.health-bar.enemy > div { background: var(--red); }
+.tcg-textbox {
+  flex: 1; margin: 0 4px; padding: 16px 8px 12px; display: flex; flex-direction: column; gap: 3px;
+  background: linear-gradient(#e8dcb6, #d2c18f); border: 2px solid var(--frame); border-radius: 6px;
+}
+.tcg-ability { display: flex; gap: 6px; align-items: center; text-align: left; }
+.tcg-ability .pips { font-size: 7px; letter-spacing: 1px; color: var(--frame); min-width: 30px; }
+.tcg-ability .ability-name { flex: 1; font-weight: bold; line-height: 1.2; }
+.tcg-ability b { font-size: 14px; }
+.tcg-ability.cooling { opacity: 0.45; }
+.tcg-status { font-size: 14px; min-height: 18px; letter-spacing: 2px; }
+.tcg-textbox .planned-action { color: #7a4a00; font-weight: bold; font-size: 12px; line-height: 1.25; }
+.tcg-race {
+  position: absolute; bottom: -11px; left: 50%; transform: translateX(-50%); white-space: nowrap;
+  padding: 2px 16px; font-weight: bold; font-size: 12px; border: 2px solid var(--frame); border-radius: 4px;
+  background: linear-gradient(#efe3bf, #c9b27a); max-width: 70%; overflow: hidden; text-overflow: ellipsis;
+}
+.tcg-gem {
+  position: absolute; top: -10px; left: -10px; width: 32px; height: 32px; transform: rotate(45deg); z-index: 3;
+  background: linear-gradient(135deg, #9ad8ff, #2a6fd6); border: 2px solid #fff; border-radius: 6px;
+  box-shadow: 0 2px 4px #0008; display: flex; align-items: center; justify-content: center;
+}
+.tcg-gem span { transform: rotate(-45deg); color: #fff; font-weight: bold; font-size: 15px; text-shadow: 0 1px 2px #000; }
+.tcg-shield {
+  position: absolute; top: -10px; right: -10px; width: 32px; height: 34px; z-index: 3; display: flex;
+  align-items: center; justify-content: center; font-weight: bold; font-size: 15px; color: #fff;
+  background: linear-gradient(#b7bfcb, #6d7684); border: 2px solid #fff; text-shadow: 0 1px 2px #000;
+  border-radius: 6px 6px 50% 50% / 6px 6px 70% 70%; box-shadow: 0 2px 4px #0008;
+}
+.tcg-badge {
+  position: absolute; bottom: -14px; width: 44px; height: 44px; border-radius: 50%; border: 3px solid #fff;
+  display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 20px; color: #fff;
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000; box-shadow: 0 2px 4px #0009; z-index: 3;
+}
+.tcg-badge.attack { left: -10px; background: radial-gradient(circle, #f5d255, #b78a12); }
+.tcg-badge.health { right: -10px; background: radial-gradient(circle, #ee5a4a, #9a1e14); border-radius: 50% 50% 50% 50% / 38% 38% 62% 62%; }
+.tcg-badge.health.damaged { color: #ff3b2b; text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff; }
+.tcg-gem.up, .tcg-shield.up, .tcg-badge.up { box-shadow: 0 0 0 3px #5fd16a, 0 2px 4px #0008; }
+.tcg-gem.down, .tcg-shield.down, .tcg-badge.down { box-shadow: 0 0 0 3px #ff5a4a, 0 2px 4px #0008; }
+.tcg-corner-badge {
+  position: absolute; top: 34px; right: -12px; z-index: 4; min-width: 30px; height: 30px; padding: 0 6px; border-radius: 15px;
+  background: #1b150e; color: var(--gold); border: 2px solid var(--gold); display: flex; align-items: center; justify-content: center; font: bold 15px var(--font-ui);
+}
+.tcg-lock {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  color: #fff; text-shadow: 0 2px 4px #000; z-index: 6; border-radius: 8px; background: #0005; padding: 12px;
+}
+.tcg-lock span { font-size: 40px; }
+.tcg-lock small { font: bold 13px var(--font-ui); background: #000a; padding: 4px 8px; border-radius: 6px; }
+
+/* Smaller cards for summaries, previews and the codex */
+.tcg-card.small { flex-basis: 170px; width: 170px; min-height: 250px; padding: 9px 9px 22px; border-width: 5px; font-size: 11.5px; margin: 10px 6px 16px; }
+.tcg-card.small .tcg-portrait { width: 124px; height: 88px; }
+.tcg-card.small .tcg-portrait span { font-size: 44px; }
+.tcg-card.small .tcg-ribbon { font-size: 13px; }
+.tcg-card.small .tcg-badge { width: 36px; height: 36px; font-size: 16px; }
+.tcg-card.small .tcg-gem, .tcg-card.small .tcg-shield { width: 26px; height: 26px; }
+.tcg-card.small .tcg-gem span, .tcg-card.small .tcg-shield { font-size: 13px; }
+
+.card-grid { display: flex; flex-wrap: wrap; gap: 8px 14px; justify-content: center; padding: 10px 0 6px; }
+.card-row { display: flex; flex-wrap: wrap; gap: 6px 16px; justify-content: center; }
+.roster-cell { display: flex; flex-direction: column; align-items: center; }
+.card-caption { color: var(--text-muted); margin-top: -6px; text-align: center; max-width: 220px; }
+
+@media (max-width: 520px) {
+  .tcg-card { flex-basis: 160px; width: 160px; min-height: 250px; padding: 9px 8px 22px; border-width: 5px; font-size: 11px; margin: 12px 4px 16px; }
+  .tcg-portrait { width: 118px; height: 84px; }
+  .tcg-portrait span { font-size: 42px; }
+  .tcg-ribbon { font-size: 13px; }
+  .tcg-badge { width: 34px; height: 34px; font-size: 15px; }
+  .tcg-card.small { flex-basis: 140px; width: 140px; }
+  .tcg-card.small .tcg-portrait { width: 100px; height: 72px; }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Heroic Encounters",
+  "short_name": "Heroic",
+  "description": "Turn-based party RPG: build a team of three, clear dungeons, create and share your own heroes and dungeons.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#14110d",
+  "theme_color": "#14110d",
+  "icons": [
+    { "src": "assets/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
