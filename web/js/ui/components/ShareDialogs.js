@@ -1,5 +1,5 @@
-import { ImportStatus } from '../../sharing/ShareService.js';
-import { copyToClipboard, h, plural } from '../dom.js';
+import { CannotUpdateError, ImportStatus, PublishState } from '../../sharing/ShareService.js';
+import { copyToClipboard, h, plural, replaceChildren } from '../dom.js';
 import { characterCard } from './Card.js';
 import { Modal } from './Modal.js';
 
@@ -68,7 +68,7 @@ export async function openImportDialog(app, input) {
 
 /** Share options for one piece of content: string, link, community code. */
 export async function openShareDialog(app, id) {
-  const { sharing, library, api } = app.services;
+  const { sharing, library, api, account } = app.services;
   const definition = library.get(id);
   let shareString;
   try {
@@ -79,47 +79,103 @@ export async function openShareDialog(app, id) {
   }
   const link = `${location.origin}${location.pathname}#import=${shareString}`;
   const bundled = library.bundleFor([id]).length - 1;
-  const codeArea = h('div', { class: 'share-code' }, library.meta(id)?.publishedCode ? h('div', { class: 'big-code' }, library.meta(id).publishedCode) : null);
+  const codeArea = h('div', { class: 'share-code' });
+  const communityIntro = h('p', {});
+  const communityActions = h('div', { class: 'row-left' });
+  let closeDialog = () => {};
 
   const copy = async (text, what) => {
     if (await copyToClipboard(text)) app.toaster.show(`${what} copied — send it to a friend!`, { icon: '📋', tone: 'good' });
     else app.toaster.error('Could not copy. Select the text and copy it manually.');
   };
 
-  const publishButton = h('button', {
-    class: 'primary',
-    disabled: !api.available,
-    onclick: async () => {
-      publishButton.disabled = true;
-      publishButton.textContent = 'Publishing…';
+  /** A button that stays disabled and says `busyLabel` while its task runs. */
+  const actionButton = (label, busyLabel, task, classes = '') => {
+    const button = h('button', {
+      class: classes,
+      disabled: !api.available,
+      onclick: async () => {
+        button.disabled = true;
+        button.textContent = busyLabel;
+        await task();
+        button.disabled = false;
+        button.textContent = label;
+      },
+    }, label);
+    return button;
+  };
+
+  const renderCommunity = ({ offerNewEntry = false } = {}) => {
+    const code = library.meta(id)?.publishedCode;
+    const state = sharing.publishState(id);
+    communityIntro.className = api.available ? '' : 'muted';
+    if (!api.available) communityIntro.textContent = 'The community server isn\'t reachable from this copy of the game, so short codes are unavailable. Share strings and links still work.';
+    else if (code) communityIntro.textContent = account.user ? 'This is published. Anyone can find it under Community or type in this code.' : 'This is published. Sign in to update or remove it.';
+    else if (account.user) communityIntro.textContent = 'Publish it to get a short code anyone can type in, and let other players find it under Community. You can update or remove it later.';
+    else communityIntro.textContent = 'Sign in to publish it. You\'ll get a short code anyone can type in, other players can find it under Community, and you can update or remove it later. Your share string and link above work without an account.';
+    replaceChildren(codeArea,
+      code ? h('div', { class: 'big-code' }, code) : null,
+      code ? h('button', { onclick: () => copy(code, 'Code') }, 'Copy code') : null,
+      state === PublishState.CHANGED ? h('p', { class: 'warning' }, 'You\'ve changed this since publishing. Players still get the older version.') : null);
+
+    const publish = async (options) => {
       try {
-        const { code } = await sharing.publish(id);
-        codeArea.replaceChildren(h('div', { class: 'big-code' }, code), h('button', { onclick: () => copy(code, 'Code') }, 'Copy code'));
-        publishButton.textContent = 'Published';
+        const { updated } = await sharing.publish(id, options);
+        app.toaster.show(updated ? `${definition.name} updated for everyone.` : `${definition.name} published.`, { icon: '🌐', tone: 'good' });
+        renderCommunity();
       } catch (error) {
         app.toaster.error(error.message);
-        publishButton.disabled = false;
-        publishButton.textContent = 'Publish to community';
+        if (error instanceof CannotUpdateError) renderCommunity({ offerNewEntry: true });
       }
-    },
-  }, 'Publish to community');
+    };
+
+    if (!account.user) {
+      replaceChildren(communityActions, h('button', {
+        class: 'primary',
+        disabled: !api.available,
+        onclick: () => {
+          closeDialog();
+          app.navigate('settings');
+        },
+      }, 'Sign in'));
+      return;
+    }
+
+    replaceChildren(communityActions,
+      state === PublishState.NOT_PUBLISHED ? actionButton('Publish to community', 'Publishing…', () => publish(), 'primary') : null,
+      state === PublishState.CHANGED ? actionButton('Update published version', 'Updating…', () => publish(), 'primary') : null,
+      offerNewEntry ? actionButton('Publish as a new entry', 'Publishing…', () => publish({ asNew: true })) : null,
+      code ? actionButton('Remove from community', 'Removing…', async () => {
+        const sure = await Modal.confirm(`Remove ${definition.name} from the community?`, 'It stays in your Workshop, and players who already imported it keep their copy. Its code stops working.', { confirmLabel: 'Remove', danger: true });
+        if (!sure) return;
+        try {
+          await sharing.unpublish(code);
+          app.toaster.show(`${definition.name} removed from the community.`, { icon: '🗑️' });
+          renderCommunity();
+        } catch (error) {
+          app.toaster.error(error.message);
+        }
+      }, 'danger') : null);
+  };
+  renderCommunity();
 
   await new Modal({
     title: `Share ${definition.name}`,
     wide: true,
-    body: h('div', { class: 'share-dialog' },
-      h('p', {}, 'Your friends can paste this into ', h('b', {}, 'Community → Import'), ' to add it to their game. It works offline — no account needed.'),
-      bundled > 0 ? h('p', { class: 'muted' }, `Includes ${plural(bundled, 'custom enemy', 'custom enemies')} this ${definition.kind} needs.`) : null,
-      h('textarea', { class: 'share-string', readonly: true, rows: 4, value: shareString, onfocus: (event) => event.target.select() }),
-      h('div', { class: 'row-left' },
-        h('button', { onclick: () => copy(shareString, 'Share string') }, 'Copy share string'),
-        h('button', { onclick: () => copy(link, 'Link') }, 'Copy link')),
-      h('h3', {}, 'Community database'),
-      api.available
-        ? h('p', {}, 'Publish it to get a short code anyone can type in, and let other players find it under Community.')
-        : h('p', { class: 'muted' }, 'The community server isn\'t reachable from this copy of the game, so short codes are unavailable. Share strings and links still work.'),
-      h('div', { class: 'row-left' }, publishButton),
-      codeArea),
+    body: (close) => {
+      closeDialog = close;
+      return h('div', { class: 'share-dialog' },
+        h('p', {}, 'Your friends can paste this into ', h('b', {}, 'Community → Import'), ' to add it to their game. It works offline — no account needed.'),
+        bundled > 0 ? h('p', { class: 'muted' }, `Includes ${plural(bundled, 'custom enemy', 'custom enemies')} this ${definition.kind} needs.`) : null,
+        h('textarea', { class: 'share-string', readonly: true, rows: 4, value: shareString, onfocus: (event) => event.target.select() }),
+        h('div', { class: 'row-left' },
+          h('button', { onclick: () => copy(shareString, 'Share string') }, 'Copy share string'),
+          h('button', { onclick: () => copy(link, 'Link') }, 'Copy link')),
+        h('h3', {}, 'Community database'),
+        communityIntro,
+        communityActions,
+        codeArea);
+    },
     actions: [{ label: 'Done', value: true, primary: false }],
   }).open();
 }

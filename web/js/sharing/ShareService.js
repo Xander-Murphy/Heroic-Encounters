@@ -17,6 +17,16 @@ export const ImportStatus = Object.freeze({
   BLOCKED: 'blocked',
 });
 
+/** How a published item compares with the player's copy. */
+export const PublishState = Object.freeze({
+  NOT_PUBLISHED: 'not-published',
+  CURRENT: 'current',
+  CHANGED: 'changed',
+});
+
+/** The published copy can't be updated from here, but the changes could still go up as a new entry. */
+export class CannotUpdateError extends Error {}
+
 /**
  * Everything to do with moving content between players:
  * share strings, share links, community codes, previews and imports.
@@ -50,21 +60,95 @@ export class ShareService {
     return `${baseUrl.split('#')[0]}#import=${text}`;
   }
 
-  /** Publish to the community database. Returns { code }. */
-  async publish(id, { description = '' } = {}) {
+  /** Whether `id` is on the community database, and if so whether the player has changed it since. */
+  publishState(id) {
+    const meta = this.library.meta(id);
+    if (!meta?.publishedCode) return PublishState.NOT_PUBLISHED;
+    return meta.publishedHash === this.#fingerprint(id) ? PublishState.CURRENT : PublishState.CHANGED;
+  }
+
+  /**
+   * Publish to the community database, or update the entry if `id` is already
+   * there (same code, likes and downloads). Returns { code, existing?, updated? }.
+   * Needs a signed-in account. Throws CannotUpdateError if the entry belongs to
+   * no one or someone else; pass `asNew` to publish the changes separately instead.
+   */
+  async publish(id, { description = '', asNew = false } = {}) {
     if (!this.api?.available) throw new Error('The community server is not reachable right now.');
     const definition = this.library.get(id);
     const known = this.library.meta(id)?.publishedCode;
-    if (known && this.library.meta(id)?.publishedHash === JSON.stringify(definition)) return { code: known, existing: true };
+    if (this.publishState(id) === PublishState.CURRENT) return { code: known, existing: true };
     const shareString = await this.codec.encode(createBundle({
       items: this.library.bundleFor([id]), title: definition.name, author: this.getAuthor(),
     }));
-    const result = await this.api.publish({
-      shareString, kind: definition.kind, title: definition.name, author: this.getAuthor(), description,
-    });
-    this.library.updateMeta(id, { publishedCode: result.code, publishedHash: JSON.stringify(definition) });
-    this.events?.emit('content.shared', { ids: [id], method: 'publish', code: result.code });
+    const upload = { shareString, title: definition.name, author: this.getAuthor(), description };
+    const fingerprint = this.#fingerprint(id);
+
+    if (known && !asNew) {
+      try {
+        await this.api.updateContent(known, upload);
+        this.library.updateMeta(id, { publishedHash: fingerprint });
+        return { code: known, updated: true };
+      } catch (error) {
+        if (error.status === 403) throw new CannotUpdateError('This upload isn\'t on your account, so it can\'t be updated. You can publish your changes as a new entry.');
+        // 404: it was removed from the community, so publish it again below.
+        if (error.status !== 404) throw error;
+      }
+    }
+
+    const result = await this.api.publish({ ...upload, kind: definition.kind });
+    this.library.updateMeta(id, { publishedCode: result.code, publishedHash: fingerprint });
+    if (!result.updated) this.events?.emit('content.shared', { ids: [id], method: 'publish', code: result.code });
     return result;
+  }
+
+  /** Remove an entry from the community database. Copies other players imported stay with them. */
+  async unpublish(code) {
+    if (!this.api?.available) throw new Error('The community server is not reachable right now.');
+    try {
+      await this.api.deleteContent(code);
+    } catch (error) {
+      if (error.status !== 404) throw error;
+    }
+    for (const { definition, meta } of this.library.customEntries()) {
+      if (meta.publishedCode === code) this.library.updateMeta(definition.id, { publishedCode: null, publishedHash: null });
+    }
+  }
+
+  /**
+   * Link the player's own creations back to uploads the account already has,
+   * for content that lost its code (an older version of the game could erase
+   * it, or the upload came from elsewhere). Returns how many were reconnected.
+   */
+  async reconnectUploads() {
+    if (!this.api?.available) return 0;
+    const { items } = await this.api.myContent();
+    let reconnected = 0;
+    for (const entry of items) { // newest first, so duplicates resolve to the latest upload
+      const id = entry.itemIds?.[0];
+      const meta = this.library.meta(id);
+      if (meta?.source !== ContentSource.CREATED || meta.publishedCode) continue;
+      const unchanged = await this.#matchesUpload(id, entry.shareString);
+      this.library.updateMeta(id, { publishedCode: entry.code, publishedHash: unchanged ? this.#fingerprint(id) : null });
+      reconnected += 1;
+    }
+    return reconnected;
+  }
+
+  async #matchesUpload(id, shareString) {
+    try {
+      const { items } = readBundle(await this.codec.decode(shareString));
+      const uploaded = items.map((item) => item.definition);
+      return JSON.stringify(uploaded.length === 1 ? uploaded[0] : uploaded) === this.#fingerprint(id);
+    } catch {
+      return false;
+    }
+  }
+
+  /** What was uploaded for `id`, including custom enemies a dungeon bundles, to spot later edits. */
+  #fingerprint(id) {
+    const items = this.library.bundleFor([id]);
+    return JSON.stringify(items.length === 1 ? items[0] : items);
   }
 
   /**

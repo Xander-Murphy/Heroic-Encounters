@@ -45,6 +45,20 @@ export class ApiClient {
     return this.#request('POST', '/api/content', { shareString, kind, title, author, description });
   }
 
+  /** Replace a published entry you own; its code, likes and downloads stay. */
+  updateContent(code, { shareString, title, author, description }) {
+    return this.#request('PUT', `/api/content/${encodeURIComponent(code)}`, { shareString, title, author, description });
+  }
+
+  deleteContent(code) {
+    return this.#request('DELETE', `/api/content/${encodeURIComponent(code)}`);
+  }
+
+  /** The signed-in account's uploads, newest first. */
+  myContent() {
+    return this.#request('GET', '/api/me/content');
+  }
+
   fetchByCode(code) {
     return this.#request('GET', `/api/content/${encodeURIComponent(code)}`);
   }

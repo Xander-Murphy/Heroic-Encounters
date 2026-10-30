@@ -169,7 +169,8 @@ export class ContentLibrary {
   updateMeta(id, changes) {
     const entry = this.#entries.get(id);
     if (!entry || entry.meta.source === ContentSource.CORE) return;
-    entry.meta = { ...entry.meta, ...changes };
+    // Counts as a change, or the older copy would win the next account sync and undo this.
+    entry.meta = { ...entry.meta, ...changes, updatedAt: Date.now() };
     this.#persist();
   }
 

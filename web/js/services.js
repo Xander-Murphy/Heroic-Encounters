@@ -49,6 +49,15 @@ export function createServices({ adapter = createDefaultAdapter(), fetchImpl } =
     sinks: [memorySink, new RemoteAnalyticsSink({ api, installId: profile.data.installId, isEnabled: () => settings.shareAnalytics })],
   });
 
+  // Once per signed-in account, after its save has arrived, recognize content it already uploaded.
+  let reconnectedFor = null;
+  events.on('account.synced', () => {
+    const userId = account.user?.id;
+    if (!userId || reconnectedFor === userId) return;
+    reconnectedFor = userId;
+    sharing.reconnectUploads().catch(() => { reconnectedFor = null; }); // try again after the next sync
+  });
+
   // Progression reacts to sharing without either knowing about the other.
   events.on('content.shared', () => progression.recordShare());
   events.on('content.imported', ({ count }) => progression.recordImport(count));

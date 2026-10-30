@@ -26,6 +26,7 @@ for (const kind of ['memory', 'sqlite', ...(mongoUri ? ['mongo'] : [])]) {
     let base;
     let store;
     let dataDir;
+    let publisher;
 
     before(async () => {
       dataDir = await mkdtemp(path.join(os.tmpdir(), 'he-test-'));
@@ -34,6 +35,7 @@ for (const kind of ['memory', 'sqlite', ...(mongoUri ? ['mongo'] : [])]) {
       server = http.createServer(createApp({ store, staticDir: path.join(root, 'web'), rateLimiter: limiter(), authRateLimiter: limiter() }));
       await new Promise((resolve) => { server.listen(0, resolve); });
       base = `http://localhost:${server.address().port}`;
+      ({ token: publisher } = await (await post('/api/auth/register', { username: 'Publisher', password: 'password123' })).json());
     });
 
     after(async () => {
@@ -44,6 +46,7 @@ for (const kind of ['memory', 'sqlite', ...(mongoUri ? ['mongo'] : [])]) {
     });
 
     const post = (url, body) => fetch(base + url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const publish = (body) => fetch(`${base}/api/content`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${publisher}` }, body: JSON.stringify(body) });
     const shareOf = (items) => codec.encode(createBundle({ items, author: 'Tester' }));
 
     it('serves the game and blocks path traversal', async () => {
@@ -57,9 +60,9 @@ for (const kind of ['memory', 'sqlite', ...(mongoUri ? ['mongo'] : [])]) {
 
     it('publishes, fetches by code, lists and is idempotent', async () => {
       const shareString = await shareOf([heroDef({ id: 'h-api-1', name: 'Api Hero' })]);
-      const first = await (await post('/api/content', { shareString, kind: 'hero', title: 'Api Hero' })).json();
+      const first = await (await publish({ shareString, kind: 'hero', title: 'Api Hero' })).json();
       assert.match(first.code, /^[A-Z2-9]{4}-[A-Z2-9]{4}$/);
-      const again = await (await post('/api/content', { shareString: await shareOf([heroDef({ id: 'h-api-1', name: 'Api Hero' })]) })).json();
+      const again = await (await publish({ shareString: await shareOf([heroDef({ id: 'h-api-1', name: 'Api Hero' })]) })).json();
       assert.equal(again.code, first.code);
 
       const entry = await (await fetch(`${base}/api/content/${first.code.toLowerCase().replace('-', '')}`)).json();
@@ -70,15 +73,27 @@ for (const kind of ['memory', 'sqlite', ...(mongoUri ? ['mongo'] : [])]) {
       assert.equal(list.items[0].shareString, undefined);
     });
 
+    it('needs an account to publish, but not to browse or fetch', async () => {
+      const shareString = await shareOf([heroDef({ id: 'h-api-guest', name: 'Guest Attempt' })]);
+      const refused = await post('/api/content', { shareString, kind: 'hero' });
+      assert.equal(refused.status, 401);
+      assert.match((await refused.json()).error, /Sign in/);
+      assert.equal((await post('/api/content', { shareString: 'not even a share string' })).status, 401, 'checked before anything is decoded');
+
+      const { code } = await (await publish({ shareString, kind: 'hero' })).json();
+      assert.equal((await fetch(`${base}/api/content/${code}`)).status, 200);
+      assert.equal((await fetch(`${base}/api/content`)).status, 200);
+    });
+
     it('rejects invalid content and garbage', async () => {
-      const bad = await post('/api/content', { shareString: await shareOf([heroDef({ id: 'h-api-bad', health: 0 })]) });
+      const bad = await publish({ shareString: await shareOf([heroDef({ id: 'h-api-bad', health: 0 })]) });
       assert.equal(bad.status, 422);
-      assert.equal((await post('/api/content', { shareString: 'HE1.nope' })).status, 400);
+      assert.equal((await publish({ shareString: 'HE1.nope' })).status, 400);
       assert.equal((await fetch(`${base}/api/content/not-a-code`)).status, 400);
     });
 
     it('counts one like per install', async () => {
-      const { code } = await (await post('/api/content', { shareString: await shareOf([heroDef({ id: 'h-api-like' })]) })).json();
+      const { code } = await (await publish({ shareString: await shareOf([heroDef({ id: 'h-api-like' })]) })).json();
       const first = await (await post(`/api/content/${code}/like`, { installId: 'i-abcdef123' })).json();
       const second = await (await post(`/api/content/${code}/like`, { installId: 'i-abcdef123' })).json();
       assert.equal(first.likes, 1);
@@ -133,6 +148,123 @@ for (const kind of ['memory', 'sqlite', ...(mongoUri ? ['mongo'] : [])]) {
       const like = (installId) => fetch(`${base}/api/content/${code}/like`, { method: 'POST', headers: authed(token), body: JSON.stringify({ installId }) }).then((response) => response.json());
       assert.equal((await like('i-device-one')).likes, 1);
       assert.equal((await like('i-device-two')).alreadyLiked, true);
+    });
+
+    describe('managing an upload', () => {
+      const signUp = async (username) => (await (await post('/api/auth/register', { username, password: 'password123' })).json()).token;
+      const send = (method, url, token, body) => fetch(base + url, {
+        method,
+        headers: token ? authed(token) : { 'Content-Type': 'application/json' },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+      const publishAs = async (token, hero) => (await (await send('POST', '/api/content', token, { shareString: await shareOf([hero]), kind: 'hero' })).json()).code;
+
+      it('lets the owner update it, keeping the code, likes and downloads', async () => {
+        const token = await signUp('Updater');
+        const code = await publishAs(token, heroDef({ id: 'h-upd-1', name: 'First Draft' }));
+        await post(`/api/content/${code}/like`, { installId: 'i-liker-12345' });
+        await post(`/api/content/${code}/download`, {});
+
+        const shareString = await shareOf([heroDef({ id: 'h-upd-1', name: 'Final Draft' })]);
+        const update = await send('PUT', `/api/content/${code}`, token, { shareString, title: 'Final Draft', author: 'Someone Else' });
+        assert.equal(update.status, 200);
+        assert.deepEqual(await update.json(), { code, updated: true });
+
+        const entry = await (await fetch(`${base}/api/content/${code}`)).json();
+        assert.equal(entry.title, 'Final Draft');
+        assert.equal(entry.author, 'Updater');
+        assert.equal(entry.shareString, shareString);
+        assert.equal(entry.likes, 1);
+        assert.equal(entry.downloads, 1);
+        assert.ok(entry.updatedAt);
+
+        const unchanged = await send('PUT', `/api/content/${code}`, token, { shareString: await shareOf([heroDef({ id: 'h-upd-1', name: 'Final Draft' })]) });
+        assert.equal((await unchanged.json()).updated, false);
+      });
+
+      it('updates instead of duplicating when an account republishes its own hero', async () => {
+        const token = await signUp('Forgetful');
+        const code = await publishAs(token, heroDef({ id: 'h-lost-1', name: 'Original' }));
+        const stranger = await signUp('SameIdPlayer');
+
+        const again = await send('POST', '/api/content', token, { shareString: await shareOf([heroDef({ id: 'h-lost-1', name: 'Edited' })]), kind: 'hero', title: 'Edited' });
+        assert.deepEqual(await again.json(), { code, updated: true });
+        assert.equal((await (await fetch(`${base}/api/content/${code}`)).json()).title, 'Edited');
+
+        const other = await publishAs(stranger, heroDef({ id: 'h-lost-1', name: 'Their Own Version' }));
+        assert.notEqual(other, code, 'another account gets its own entry');
+      });
+
+      it('lists only the account\'s own uploads, newest first', async () => {
+        assert.equal((await send('GET', '/api/me/content', null)).status, 401);
+        const token = await signUp('Collector');
+        const stranger = await signUp('NotCollector');
+        const first = await publishAs(token, heroDef({ id: 'h-col-1', name: 'First' }));
+        await new Promise((resolve) => { setTimeout(resolve, 5); });
+        const second = await publishAs(token, heroDef({ id: 'h-col-2', name: 'Second' }));
+        await publishAs(stranger, heroDef({ id: 'h-col-3', name: 'Theirs' }));
+
+        const { items } = await (await send('GET', '/api/me/content', token)).json();
+        assert.deepEqual(items.map((item) => item.code), [second, first]);
+        assert.ok(items[0].shareString);
+        assert.equal(items[0].ownerId, undefined);
+      });
+
+      it('refuses invalid updates and content published elsewhere', async () => {
+        const token = await signUp('Careful');
+        const code = await publishAs(token, heroDef({ id: 'h-upd-2', name: 'Valid' }));
+        const other = await publishAs(token, heroDef({ id: 'h-upd-3', name: 'Other' }));
+        const invalid = await send('PUT', `/api/content/${code}`, token, { shareString: await shareOf([heroDef({ id: 'h-upd-2', health: 0 })]) });
+        assert.equal(invalid.status, 422);
+        const duplicate = await send('PUT', `/api/content/${code}`, token, { shareString: await shareOf([heroDef({ id: 'h-upd-3', name: 'Other' })]) });
+        assert.equal(duplicate.status, 409);
+        assert.match((await duplicate.json()).error, new RegExp(other));
+        assert.equal((await (await fetch(`${base}/api/content/${code}`)).json()).title, 'Valid');
+      });
+
+      it('only lets the owning account change or remove it', async () => {
+        const owner = await signUp('OwnerOne');
+        const stranger = await signUp('Stranger');
+        const code = await publishAs(owner, heroDef({ id: 'h-own-1', name: 'Protected' }));
+        // An upload from before publishing needed an account.
+        const { code: guestCode } = await store.insertContent({
+          code: 'GUES-TTTT', hash: 'old-guest-upload', kind: 'hero', title: 'Guest Upload', author: '', description: '',
+          shareString: await shareOf([heroDef({ id: 'h-own-2' })]), itemCount: 1, itemIds: ['h-own-2'], createdAt: new Date().toISOString(),
+        });
+        const change = { shareString: await shareOf([heroDef({ id: 'h-own-1', name: 'Hijacked' })]) };
+
+        assert.equal((await send('PUT', `/api/content/${code}`, null, change)).status, 401);
+        assert.equal((await send('PUT', `/api/content/${code}`, stranger, change)).status, 403);
+        assert.equal((await send('DELETE', `/api/content/${code}`, null)).status, 401);
+        assert.equal((await send('DELETE', `/api/content/${code}`, stranger)).status, 403);
+        assert.equal((await send('DELETE', `/api/content/${guestCode}`, owner)).status, 403, 'guest uploads have no owner');
+        assert.equal((await (await fetch(`${base}/api/content/${code}`)).json()).title, 'Protected');
+      });
+
+      it('tells a player which listings are theirs without exposing owner ids', async () => {
+        const token = await signUp('Lister');
+        const code = await publishAs(token, heroDef({ id: 'h-mine-1', name: 'Listed Hero' }));
+        const find = async (requester) => (await (await send('GET', '/api/content?sort=recent&limit=50', requester)).json()).items.find((item) => item.code === code);
+        const mine = await find(token);
+        assert.equal(mine.mine, true);
+        assert.equal(mine.ownerId, undefined);
+        assert.equal((await find(null)).mine, false);
+      });
+
+      it('removes it and frees its content to be published again', async () => {
+        const token = await signUp('Remover');
+        const hero = heroDef({ id: 'h-del-api', name: 'Short Lived' });
+        const code = await publishAs(token, hero);
+        await post(`/api/content/${code}/like`, { installId: 'i-liker-67890' });
+
+        assert.equal((await send('DELETE', `/api/content/${code}`, token)).status, 200);
+        assert.equal((await fetch(`${base}/api/content/${code}`)).status, 404);
+        assert.equal((await send('DELETE', `/api/content/${code}`, token)).status, 404);
+
+        const again = await publishAs(token, hero);
+        assert.notEqual(again, code);
+        assert.equal((await (await fetch(`${base}/api/content/${again}`)).json()).likes, 0);
+      });
     });
 
     it('ingests anonymous metrics and summarizes them', async () => {

@@ -36,5 +36,7 @@ Every run earns **renown**, even a loss. Levels unlock new heroes. Achievements,
 ## Sharing
 
 - **Share** on any of your items gives a share string and a link. Friends paste either into **Community → Import**.
-- **Publish to community** (when connected to a server) gives a short code like `K7F2-QX9P` and lists it for everyone to browse.
+- **Publish to community** (when connected to a server and signed in; share strings and links need no account) gives a short code like `K7F2-QX9P` and lists it for everyone to browse.
+- **Update published version** appears in **Share** after you edit something you published, and **Save & update community** does the same straight from the Edit screen. The code, likes and downloads stay the same, and players who imported it see **🔄 Update** under **Community**. Uploads from before accounts were required can't be changed, but your edits can go up as a new entry.
+- **Remove from community** takes your upload down (from **Share**, or **🗑️ Remove** on the **Community** tab). **🗑️ Delete** in the Workshop removes your own copy and asks whether to take the upload down too. Players who already imported it keep their copy.
 - Imports always show a preview first, are checked for errors, and never overwrite your own creations.

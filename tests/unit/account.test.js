@@ -76,6 +76,24 @@ describe('cloud save merge', () => {
   });
 });
 
+describe('library metadata', () => {
+  it('keeps a published code through a sync', () => {
+    const { library } = makeLibrary();
+    library.save(heroDef({ id: 'h-pub-1' }));
+    const cloud = mergeSaves({}, { library: library.customEntries() });
+
+    const realNow = Date.now;
+    Date.now = () => realNow() + 1000; // publishing happens after the save, not in the same millisecond
+    try {
+      library.updateMeta('h-pub-1', { publishedCode: 'ABCD-EFGH', publishedHash: 'x' });
+    } finally {
+      Date.now = realNow;
+    }
+    const merged = mergeSaves(cloud, { library: library.customEntries() });
+    assert.equal(merged.library[0].meta.publishedCode, 'ABCD-EFGH');
+  });
+});
+
 describe('library deletions', () => {
   it('remembers removed content until it is saved again', () => {
     const { library } = makeLibrary();

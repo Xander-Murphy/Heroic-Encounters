@@ -59,6 +59,7 @@ export class MongoCommunityStore extends CommunityStore {
     await Promise.all([
       this.content.createIndex({ hash: 1 }, { unique: true }),
       this.content.createIndex({ kind: 1, createdAt: -1 }),
+      this.content.createIndex({ ownerId: 1, createdAt: -1 }),
       this.installDays.createIndex({ installId: 1, day: 1 }, { unique: true }),
       this.users.createIndex({ usernameKey: 1 }, { unique: true }),
       this.sessions.createIndex({ expiresAt: 1 }),
@@ -67,7 +68,7 @@ export class MongoCommunityStore extends CommunityStore {
 
   async insertContent(entry) {
     const { code, ...rest } = entry;
-    await this.content.insertOne({ _id: code, downloads: 0, likes: 0, reports: 0, ownerId: null, ...rest });
+    await this.content.insertOne({ _id: code, downloads: 0, likes: 0, reports: 0, ownerId: null, updatedAt: null, ...rest });
     return this.getByCode(code);
   }
 
@@ -96,6 +97,20 @@ export class MongoCommunityStore extends CommunityStore {
       { $project: { popularity: 0 } },
     ]).toArray();
     return documents.map(fromContent);
+  }
+
+  async listOwnedBy(ownerId) {
+    return (await this.content.find({ ownerId }).sort({ createdAt: -1 }).toArray()).map(fromContent);
+  }
+
+  async updateContent(code, changes) {
+    await this.content.updateOne({ _id: code }, { $set: changes });
+    return this.getByCode(code);
+  }
+
+  async deleteContent(code) {
+    const votes = { _id: new RegExp(`^${escapeRegex(code)}\\|`) };
+    await Promise.all([this.likes.deleteMany(votes), this.reports.deleteMany(votes), this.content.deleteOne({ _id: code })]);
   }
 
   async incrementDownloads(code) {

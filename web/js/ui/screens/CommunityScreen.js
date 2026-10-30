@@ -1,5 +1,6 @@
 import { h, plural } from '../dom.js';
 import { Screen, screenHeader } from '../Screen.js';
+import { Modal } from '../components/Modal.js';
 import { emptyState, tabs } from '../components/widgets.js';
 
 const KIND_ICON = { hero: '🦸', enemy: '👹', dungeon: '🏰' };
@@ -95,9 +96,12 @@ export class CommunityScreen extends Screen {
   }
 
   #entry(entry) {
-    const { library, api, profile } = this.services;
+    const { library, api, profile, sharing } = this.services;
     const owned = (entry.itemIds ?? []).some((id) => library.has(id))
       || library.customEntries().some(({ meta }) => meta.origin?.code === entry.code || meta.publishedCode === entry.code);
+    // Imported before the creator's latest update?
+    const outdated = entry.updatedAt && library.customEntries().some(({ meta }) => meta.source === 'imported'
+      && meta.origin?.code === entry.code && (meta.origin.importedAt ?? 0) < Date.parse(entry.updatedAt));
     const like = h('button', {
       class: 'small',
       onclick: async () => {
@@ -116,12 +120,29 @@ export class CommunityScreen extends Screen {
       h('div', { class: 'community-icon' }, KIND_ICON[entry.kind] ?? '❔'),
       h('div', { class: 'community-info' },
         h('h3', {}, entry.title),
-        h('div', { class: 'muted' }, `by ${entry.author || 'anonymous'} · ${new Date(entry.createdAt).toLocaleDateString()} · ${plural(entry.itemCount, 'item')} · ${entry.downloads} downloads`),
+        h('div', { class: 'muted' }, `by ${entry.author || 'anonymous'} · ${new Date(entry.createdAt).toLocaleDateString()}${entry.updatedAt ? ` · updated ${new Date(entry.updatedAt).toLocaleDateString()}` : ''} · ${plural(entry.itemCount, 'item')} · ${entry.downloads} downloads`),
         entry.description ? h('p', {}, entry.description) : null,
         h('code', { class: 'code-chip', title: 'Community code' }, entry.code)),
       h('div', { class: 'community-actions' },
-        owned ? h('span', { class: 'pill pill-good' }, 'In your collection') : h('button', { class: 'primary small', onclick: async () => { if (await this.app.importFromText(entry.code)) this.#load(); } }, '📥 Get'),
-        like));
+        entry.mine ? h('span', { class: 'pill pill-info' }, 'Your upload') : null,
+        outdated ? h('button', { class: 'primary small', onclick: async () => { if (await this.app.importFromText(entry.code)) this.#load(); } }, '🔄 Update') : null,
+        !outdated && owned && !entry.mine ? h('span', { class: 'pill pill-good' }, 'In your collection') : null,
+        !owned ? h('button', { class: 'primary small', onclick: async () => { if (await this.app.importFromText(entry.code)) this.#load(); } }, '📥 Get') : null,
+        like,
+        entry.mine ? h('button', {
+          class: 'danger small',
+          onclick: async () => {
+            const sure = await Modal.confirm(`Remove ${entry.title} from the community?`, 'Your own copy stays in your Workshop, and players who already imported it keep theirs. Its code stops working.', { confirmLabel: 'Remove', danger: true });
+            if (!sure) return;
+            try {
+              await sharing.unpublish(entry.code);
+              this.app.toaster.show(`${entry.title} removed from the community.`, { icon: '🗑️' });
+              this.#load();
+            } catch (error) {
+              this.app.toaster.error(error.message);
+            }
+          },
+        }, '🗑️ Remove') : null));
   }
 }
 

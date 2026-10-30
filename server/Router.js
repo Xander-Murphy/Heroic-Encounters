@@ -27,6 +27,10 @@ export class Router {
     return this.add('PUT', pattern, handler);
   }
 
+  delete(pattern, handler) {
+    return this.add('DELETE', pattern, handler);
+  }
+
   /** { handler, params } for a request, or null. */
   match(method, pathname) {
     for (const route of this.#routes) {

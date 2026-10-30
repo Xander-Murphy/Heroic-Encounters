@@ -1,11 +1,13 @@
 /**
  * Service worker: makes the game work offline after the first visit.
  *
- * Game files: served from cache immediately and refreshed in the background
- * (stale-while-revalidate), so updates arrive on the next load.
+ * Game files: fetched fresh whenever the network answers, so a player never
+ * runs an old version after an update. The cached copy is only for when the
+ * network fails or is slower than NETWORK_PATIENCE_MS.
  * API calls (/api/…): always go to the network; never cached.
  */
-const CACHE = 'heroic-encounters-v1';
+const CACHE = 'heroic-encounters-v2';
+const NETWORK_PATIENCE_MS = 3000;
 const SHELL = [
   './',
   './index.html',
@@ -45,8 +47,10 @@ self.addEventListener('fetch', (event) => {
       .catch(() => null);
 
     if (cached) {
-      event.waitUntil(network);
-      return cached;
+      event.waitUntil(network); // finishes in the background if the cache answers first
+      const patience = new Promise((resolve) => { setTimeout(() => resolve(null), NETWORK_PATIENCE_MS); });
+      const fresh = await Promise.race([network, patience]);
+      return fresh?.ok ? fresh : cached;
     }
     const response = await network;
     if (response) return response;

@@ -54,6 +54,7 @@ const fromRow = (row) => row && ({
   likes: row.likes,
   reports: row.reports,
   ownerId: row.owner_id ?? null,
+  updatedAt: row.updated_at ?? null,
 });
 
 const userFromRow = (row) => row && ({
@@ -75,6 +76,8 @@ export class SqliteCommunityStore extends CommunityStore {
     const columns = this.db.prepare('PRAGMA table_info(content)').all().map((column) => column.name);
     if (!columns.includes('item_ids')) this.db.exec("ALTER TABLE content ADD COLUMN item_ids TEXT NOT NULL DEFAULT '[]'");
     if (!columns.includes('owner_id')) this.db.exec('ALTER TABLE content ADD COLUMN owner_id TEXT');
+    if (!columns.includes('updated_at')) this.db.exec('ALTER TABLE content ADD COLUMN updated_at TEXT');
+    this.db.exec('CREATE INDEX IF NOT EXISTS content_owner ON content (owner_id)');
   }
 
   static async open({ filePath }) {
@@ -114,6 +117,24 @@ export class SqliteCommunityStore extends CommunityStore {
     const rows = this.db.prepare(`SELECT * FROM content WHERE ${where.join(' AND ')} ORDER BY ${order} LIMIT ? OFFSET ?`)
       .all(...params, limit, offset);
     return rows.map(fromRow);
+  }
+
+  async listOwnedBy(ownerId) {
+    return this.db.prepare('SELECT * FROM content WHERE owner_id = ? ORDER BY created_at DESC').all(ownerId).map(fromRow);
+  }
+
+  async updateContent(code, changes) {
+    this.db.prepare(`
+      UPDATE content SET hash = ?, title = ?, author = ?, description = ?, share_string = ?, item_count = ?, item_ids = ?, updated_at = ?
+      WHERE code = ?
+    `).run(changes.hash, changes.title, changes.author, changes.description, changes.shareString, changes.itemCount, JSON.stringify(changes.itemIds ?? []), changes.updatedAt, code);
+    return this.getByCode(code);
+  }
+
+  async deleteContent(code) {
+    this.db.prepare('DELETE FROM content_likes WHERE code = ?').run(code);
+    this.db.prepare('DELETE FROM content_reports WHERE code = ?').run(code);
+    this.db.prepare('DELETE FROM content WHERE code = ?').run(code);
   }
 
   async incrementDownloads(code) {

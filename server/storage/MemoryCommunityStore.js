@@ -31,7 +31,7 @@ export class MemoryCommunityStore extends CommunityStore {
   }
 
   async insertContent(entry) {
-    const stored = { downloads: 0, likes: 0, reports: 0, ownerId: null, ...entry };
+    const stored = { downloads: 0, likes: 0, reports: 0, ownerId: null, updatedAt: null, ...entry };
     this.content.set(stored.code, stored);
     this.#scheduleSave();
     return { ...stored };
@@ -56,6 +56,31 @@ export class MemoryCommunityStore extends CommunityStore {
       .sort((a, b) => (sort === 'popular' ? popularity(b) - popularity(a) : 0) || b.createdAt.localeCompare(a.createdAt))
       .slice(offset, offset + limit)
       .map((entry) => ({ ...entry }));
+  }
+
+  async listOwnedBy(ownerId) {
+    return [...this.content.values()]
+      .filter((entry) => entry.ownerId === ownerId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .map((entry) => ({ ...entry }));
+  }
+
+  async updateContent(code, changes) {
+    const entry = this.content.get(code);
+    if (!entry) return null;
+    Object.assign(entry, changes);
+    this.#scheduleSave();
+    return { ...entry };
+  }
+
+  async deleteContent(code) {
+    this.content.delete(code);
+    for (const votes of [this.likes, this.reports]) {
+      for (const key of votes) {
+        if (key.startsWith(`${code}|`)) votes.delete(key);
+      }
+    }
+    this.#scheduleSave();
   }
 
   async incrementDownloads(code) {

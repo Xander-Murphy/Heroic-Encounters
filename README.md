@@ -37,7 +37,7 @@ Open <http://localhost:8080>. Once the shared server is configured in `web/js/co
 - **Workshop** — hero, enemy (incl. bosses with phases) and dungeon editors with live card preview, ability templates and a power rating (Fair / Strong / Overtuned) relative to the built-in roster.
 - **Sharing** — `HE1.…` compressed share strings and links (no server needed), or publish to the community database for a code like `K7F2-QX9P`. Imports are previewed and validated before anything changes; a dungeon automatically bundles the custom enemies it needs.
 - **Community** — browse, search, sort by popular/newest, import, like.
-- **Accounts** (optional) — sign up in Settings to save progress and creations to the server and continue on any device. The game stays local-first: saves sync in the background and devices are merged, never overwritten. Uploads from a signed-in player carry their account name.
+- **Accounts** (optional) — sign up in Settings to save progress and creations to the server and continue on any device. The game stays local-first: saves sync in the background and devices are merged, never overwritten. Publishing to the community needs an account, so every new upload carries its creator's account name and can be updated or removed by them. Playing, importing and share strings don't need one.
 - **Engagement** (from `docs/Business.md`) — renown & levels, unlockable heroes, 17 achievements, seeded daily challenge with streaks, hero mastery, enemy codex, and the business plan's key metrics (DAU, 1/7-day return rate, run completion, heroes unlocked) collected anonymously. See `docs/Engagement.md`.
 - Keyboard play in combat (1–5, Enter, Esc), reduced-motion support, responsive down to phone width, light/dark theme.
 
