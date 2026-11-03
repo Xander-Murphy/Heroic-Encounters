@@ -15,9 +15,13 @@ setTimeout(() => {
   };
   const heading = document.createElement('h2');
   heading.textContent = 'Heroic Encounters is taking a long time to start';
-  root.replaceChildren(
+  // Styled on its own wrapper: the game may still load and replace this, and must not inherit the layout.
+  const help = document.createElement('div');
+  help.className = 'boot-help';
+  help.append(
     heading,
-    paragraph('Try reloading the page. If that doesn\'t help, an ad blocker or privacy extension may be blocking part of the game: allow this site in the extension, or try a private window.'),
+    paragraph('The server may be waking up, which can take up to a minute. The game will start on its own when it\'s ready.'),
+    paragraph('Still stuck after that? Try reloading the page. An ad blocker or privacy extension may also be blocking part of the game: allow this site in the extension, or try a private window.'),
   );
-  root.classList.add('boot-help');
+  root.replaceChildren(help);
 }, 10_000);
