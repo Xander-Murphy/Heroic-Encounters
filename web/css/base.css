@@ -193,6 +193,7 @@ dialog.modal::backdrop { background: #000a; }
 /* ---------- Tooltip ---------- */
 #tooltip {
   display: none; position: fixed; z-index: 2000; max-width: 290px; pointer-events: none;
+  inset: auto; margin: 0; overflow: visible; /* undo the browser's default popover centering */
   background: #1b150e; color: #efe6d2; border: 2px solid #e0b34a; border-radius: 8px;
   padding: 10px 12px; font-size: 13px; line-height: 1.35; box-shadow: 0 6px 18px #000a;
 }

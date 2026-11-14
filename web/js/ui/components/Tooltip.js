@@ -10,7 +10,9 @@ let current = null;
 
 function ensureElement() {
   if (tooltipElement) return tooltipElement;
-  tooltipElement = h('div', { id: 'tooltip', role: 'tooltip' });
+  // popover="manual" lets the tooltip join the browser's top layer, so it can
+  // appear above modal <dialog>s (which no z-index can beat).
+  tooltipElement = h('div', { id: 'tooltip', role: 'tooltip', popover: 'manual' });
   document.body.append(tooltipElement);
 
   const show = (event) => {
@@ -34,8 +36,12 @@ export function attachTooltip(element, build) {
   return element;
 }
 
+const supportsPopover = typeof HTMLElement !== 'undefined' && 'showPopover' in HTMLElement.prototype;
+
 export function hideTooltip() {
-  if (tooltipElement) tooltipElement.style.display = 'none';
+  if (!tooltipElement) return;
+  tooltipElement.style.display = 'none';
+  if (supportsPopover && tooltipElement.matches(':popover-open')) tooltipElement.hidePopover();
   current = null;
 }
 
@@ -45,6 +51,11 @@ function showTooltip(target) {
   current = target;
   replaceChildren(tooltipElement, build());
   tooltipElement.style.display = 'block';
+  if (supportsPopover) {
+    // Re-show so it stacks above any dialog opened since it was last shown.
+    if (tooltipElement.matches(':popover-open')) tooltipElement.hidePopover();
+    tooltipElement.showPopover();
+  }
 
   const box = target.getBoundingClientRect();
   const tip = tooltipElement.getBoundingClientRect();
