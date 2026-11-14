@@ -13,6 +13,7 @@ import { createStore } from './storage/createStore.js';
  *   PORT=3000 npm start           → another port
  *   STORAGE=json npm start        → JSON file instead of SQLite
  *   DATA_DIR=/var/lib/he npm start
+ *   MONGODB_URI=mongodb+srv://… npm start  → MongoDB (needs `npm install`; see docs/Hosting.md)
  */
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const config = {
@@ -20,10 +21,12 @@ const config = {
   host: process.env.HOST ?? '0.0.0.0',
   storage: process.env.STORAGE ?? 'auto',
   dataDir: path.resolve(root, process.env.DATA_DIR ?? 'data'),
+  mongoUri: process.env.MONGODB_URI ?? '',
+  mongoDbName: process.env.MONGODB_DB || undefined,
   staticDir: path.join(root, 'web'),
 };
 
-const { store, kind } = await createStore({ kind: config.storage, dataDir: config.dataDir });
+const { store, kind } = await createStore({ ...config, kind: config.storage });
 const server = http.createServer(createApp({ store, staticDir: config.staticDir, storageKind: kind }));
 
 server.listen(config.port, config.host, () => {

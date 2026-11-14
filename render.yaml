@@ -1,0 +1,16 @@
+# Render blueprint for the community server (accounts, saves, uploads).
+# In Render: New → Blueprint → pick this repository. It asks for MONGODB_URI.
+# See docs/Hosting.md for the full walkthrough.
+services:
+  - type: web
+    name: heroic-encounters
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.14.0
+      - key: MONGODB_URI
+        sync: false

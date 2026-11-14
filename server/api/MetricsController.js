@@ -1,4 +1,4 @@
-import { TRACKED_EVENTS } from '../../web/js/analytics/Analytics.js';
+import { TRACKED_EVENTS } from '../../web/js/insights/Insights.js';
 import { addDays, dateKey, daysBetween } from '../../web/js/progression/dates.js';
 import { HttpError, readJson, sendJson } from '../http.js';
 

@@ -1,5 +1,7 @@
+import { AccountController } from './api/AccountController.js';
 import { ContentController } from './api/ContentController.js';
 import { MetricsController } from './api/MetricsController.js';
+import { Authenticator } from './auth/Authenticator.js';
 import { CORS_HEADERS, HttpError, sendJson, StaticFiles } from './http.js';
 import { RateLimiter } from './RateLimiter.js';
 import { Router } from './Router.js';
@@ -9,10 +11,16 @@ import { Router } from './Router.js';
  * everywhere else. Dependencies come in as arguments so tests can run the
  * whole app against an in-memory store.
  */
-export function createApp({ store, staticDir, storageKind = 'unknown', rateLimiter = new RateLimiter({ capacity: 30, perMinute: 30 }) }) {
+export function createApp({
+  store, staticDir, storageKind = 'unknown',
+  rateLimiter = new RateLimiter({ capacity: 30, perMinute: 30 }),
+  authRateLimiter = new RateLimiter({ capacity: 10, perMinute: 5 }),
+}) {
   const router = new Router();
-  router.get('/api/health', ({ response }) => sendJson(response, 200, { ok: true, storage: storageKind, version: 1 }));
-  new ContentController({ store, rateLimiter }).register(router);
+  const authenticator = new Authenticator({ store });
+  router.get('/api/health', ({ response }) => sendJson(response, 200, { ok: true, storage: storageKind, version: 1, accounts: true }));
+  new ContentController({ store, rateLimiter, authenticator }).register(router);
+  new AccountController({ store, authenticator, rateLimiter: authRateLimiter }).register(router);
   new MetricsController({ store, rateLimiter: new RateLimiter({ capacity: 60, perMinute: 60 }) }).register(router);
   const staticFiles = staticDir ? new StaticFiles(staticDir) : null;
 

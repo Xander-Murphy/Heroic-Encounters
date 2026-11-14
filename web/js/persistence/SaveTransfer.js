@@ -8,7 +8,7 @@ const SAVE_FORMAT = 'heroic-encounters/save';
  * or keep a copy before clearing site data.
  */
 export class SaveTransfer {
-  constructor({ adapter, keys = ['profile', 'settings', 'library', 'metrics'], codec = new ShareCodec() }) {
+  constructor({ adapter, keys = ['profile', 'settings', 'library', 'library-deleted', 'metrics'], codec = new ShareCodec() }) {
     this.adapter = adapter;
     this.keys = keys;
     this.codec = codec;

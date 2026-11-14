@@ -22,6 +22,7 @@ export const MASTERY = Object.freeze([
 export const defaultProfileData = () => ({
   installId: '',
   playerName: '',
+  playerNameAt: 0, // when the name was last changed (the newest name wins when devices sync)
   renown: 0,
   achievements: {}, // id -> timestamp
   heroStats: {}, // heroId -> { runs, wins }
@@ -54,6 +55,11 @@ export class Profile {
 
   toJSON() {
     return this.data;
+  }
+
+  setPlayerName(name) {
+    this.data.playerName = String(name ?? '').trim().slice(0, 32);
+    this.data.playerNameAt = Date.now();
   }
 
   // --- Level and renown -----------------------------------------------------

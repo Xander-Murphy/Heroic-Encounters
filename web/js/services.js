@@ -1,5 +1,7 @@
-import { Analytics, MemoryAnalyticsSink, RemoteAnalyticsSink } from './analytics/Analytics.js';
+import { AccountService } from './account/AccountService.js';
+import { Analytics, MemoryAnalyticsSink, RemoteAnalyticsSink } from './insights/Insights.js';
 import { ApiClient } from './api/ApiClient.js';
+import { DEFAULT_SERVER_URL } from './config.js';
 import { ContentLibrary, newContentId } from './content/ContentLibrary.js';
 import { EventBus } from './EventBus.js';
 import { JsonStore, createDefaultAdapter } from './persistence/storage.js';
@@ -33,8 +35,11 @@ export function createServices({ adapter = createDefaultAdapter(), fetchImpl } =
     profileStore.save(profile.toJSON());
   }
 
-  const library = new ContentLibrary({ store: new JsonStore(adapter, 'library', []) });
-  const api = new ApiClient({ baseUrl: settings.serverUrl, fetchImpl });
+  const library = new ContentLibrary({ store: new JsonStore(adapter, 'library', []), deletedStore: new JsonStore(adapter, 'library-deleted', {}) });
+  const api = new ApiClient({ baseUrl: settings.serverUrl || DEFAULT_SERVER_URL, fetchImpl });
+  const account = new AccountService({
+    api, store: new JsonStore(adapter, 'account', { token: null, user: null, lastSyncedAt: null }), profile, profileStore, library, events,
+  });
   const progression = new ProgressionService({ profile, store: profileStore, library, events });
   const sharing = new ShareService({ library, api, events, getAuthor: () => profile.data.playerName });
 
@@ -42,6 +47,15 @@ export function createServices({ adapter = createDefaultAdapter(), fetchImpl } =
   const analytics = new Analytics({
     events,
     sinks: [memorySink, new RemoteAnalyticsSink({ api, installId: profile.data.installId, isEnabled: () => settings.shareAnalytics })],
+  });
+
+  // Once per signed-in account, after its save has arrived, recognize content it already uploaded.
+  let reconnectedFor = null;
+  events.on('account.synced', () => {
+    const userId = account.user?.id;
+    if (!userId || reconnectedFor === userId) return;
+    reconnectedFor = userId;
+    sharing.reconnectUploads().catch(() => { reconnectedFor = null; }); // try again after the next sync
   });
 
   // Progression reacts to sharing without either knowing about the other.
@@ -58,9 +72,13 @@ export function createServices({ adapter = createDefaultAdapter(), fetchImpl } =
       events.emit('settings.changed', settings);
     },
     profile,
-    saveProfile: () => profileStore.save(profile.toJSON()),
+    saveProfile: () => {
+      profileStore.save(profile.toJSON());
+      account.scheduleSync();
+    },
     library,
     api,
+    account,
     progression,
     sharing,
     analytics,

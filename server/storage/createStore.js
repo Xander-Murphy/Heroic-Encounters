@@ -5,11 +5,21 @@ import { MemoryCommunityStore } from './MemoryCommunityStore.js';
 import { SqliteCommunityStore } from './SqliteCommunityStore.js';
 
 /**
- * Pick a storage backend: SQLite when available (Node 22.5+), otherwise a
- * JSON snapshot file. `kind: 'memory'` keeps nothing on disk (tests).
+ * Pick a storage backend:
+ *   - MongoDB when a connection string is given (hosting without a disk)
+ *   - otherwise SQLite when available (Node 22.5+)
+ *   - otherwise a JSON snapshot file.
+ * `kind: 'memory'` keeps nothing on disk (tests).
  */
-export async function createStore({ kind = 'auto', dataDir = 'data' } = {}) {
+export async function createStore({ kind = 'auto', dataDir = 'data', mongoUri = '', mongoDbName } = {}) {
   if (kind === 'memory') return { store: await MemoryCommunityStore.open({}), kind: 'memory' };
+
+  if (kind === 'mongo' || (kind === 'auto' && mongoUri)) {
+    if (!mongoUri) throw new Error('STORAGE=mongo needs a MONGODB_URI connection string.');
+    // Imported here so the driver is only needed by servers that use it.
+    const { MongoCommunityStore } = await import('./MongoCommunityStore.js');
+    return { store: await MongoCommunityStore.open({ uri: mongoUri, dbName: mongoDbName }), kind: 'mongo' };
+  }
 
   await mkdir(dataDir, { recursive: true });
   if (kind === 'auto' || kind === 'sqlite') {

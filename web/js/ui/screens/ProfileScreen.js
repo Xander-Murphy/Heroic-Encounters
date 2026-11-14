@@ -1,4 +1,4 @@
-import { localMetrics } from '../../analytics/Analytics.js';
+import { localMetrics } from '../../insights/Insights.js';
 import { ContentSource } from '../../content/ContentLibrary.js';
 import { ACHIEVEMENTS } from '../../progression/achievements.js';
 import { MASTERY } from '../../progression/Profile.js';

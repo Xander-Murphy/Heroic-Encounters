@@ -7,6 +7,7 @@ import { App } from './ui/App.js';
  */
 async function main() {
   const root = document.getElementById('app');
+  document.documentElement.dataset.started = 'true'; // tells boot.js the modules loaded
   try {
     const services = createServices();
     const app = new App({ services, root });

@@ -1,5 +1,6 @@
 import { ContentSource } from '../../content/ContentLibrary.js';
 import { ratePower } from '../../content/powerBudget.js';
+import { PublishState } from '../../sharing/ShareService.js';
 import { h, plural } from '../dom.js';
 import { Screen, screenHeader } from '../Screen.js';
 import { Modal } from '../components/Modal.js';
@@ -60,6 +61,7 @@ export class WorkshopScreen extends Screen {
           h('span', { class: ['pill', imported ? 'pill-info' : 'pill-good'] }, imported ? `Imported${meta.origin?.author ? ` from ${meta.origin.author}` : ''}` : 'Your creation'),
           rating ? h('span', { class: 'pill', style: { borderColor: rating.tier.color, color: rating.tier.color }, title: `Power ${rating.score} (built-in average ${rating.baseline})` }, `⚖️ ${rating.tier.label}`) : null,
           meta.publishedCode ? h('span', { class: 'pill', title: 'Community code' }, `🌐 ${meta.publishedCode}`) : null,
+          this.services.sharing.publishState(definition.id) === PublishState.CHANGED ? h('span', { class: 'pill pill-info', title: 'Press Share to update the community version' }, 'Unpublished changes') : null,
           definition.kind === 'dungeon' && !library.isPlayable(definition) ? h('span', { class: 'pill pill-bad' }, 'Missing enemies') : null),
         dependents.length ? h('small', { class: 'muted' }, `Used by ${dependents.map((item) => item.name).join(', ')}`) : null,
         h('div', { class: 'row-left actions' },
@@ -74,10 +76,34 @@ export class WorkshopScreen extends Screen {
     const warning = dependents.length
       ? `${dependents.map((item) => item.name).join(', ')} ${dependents.length === 1 ? 'uses' : 'use'} it and will stop working until it's back.`
       : 'This cannot be undone (unless you still have a share string for it).';
-    if (await Modal.confirm(`Delete ${definition.name}?`, warning, { confirmLabel: 'Delete', danger: true })) {
-      this.services.library.remove(definition.id);
-      this.app.toaster.show(`${definition.name} deleted.`, { icon: '🗑️' });
+    const { library, sharing, api, account } = this.services;
+    const code = library.meta(definition.id)?.publishedCode;
+    const canUnpublish = code && api.available && account.user;
+    const choice = await new Modal({
+      title: `Delete ${definition.name}?`,
+      body: h('div', {},
+        h('p', {}, warning),
+        code ? h('p', { class: 'muted' }, canUnpublish
+          ? `It's also published to the community as ${code}. Players who imported it keep their copy either way.`
+          : `Its community copy (${code}) stays published. Sign in and connect to the server to remove that too.`) : null),
+      actions: [
+        { label: 'Cancel', value: null },
+        ...(canUnpublish ? [{ label: 'Delete from Workshop only', value: 'local' }, { label: 'Delete and remove from community', value: 'everywhere', danger: true }] : [{ label: 'Delete', value: 'local', danger: true }]),
+      ],
+    }).open();
+    if (!choice) return;
+
+    if (choice === 'everywhere') {
+      try {
+        await sharing.unpublish(code);
+      } catch (error) {
+        // Keep the local copy so nothing is half done; the player can retry or delete locally.
+        this.app.toaster.error(error.message);
+        return;
+      }
     }
+    library.remove(definition.id);
+    this.app.toaster.show(choice === 'everywhere' ? `${definition.name} deleted and removed from the community.` : `${definition.name} deleted.`, { icon: '🗑️' });
   }
 
   async #pickTemplate(kind) {

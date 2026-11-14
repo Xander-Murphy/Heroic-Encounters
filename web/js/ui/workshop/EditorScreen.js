@@ -80,6 +80,8 @@ export class EditorScreen extends Screen {
 
   #renderPreview() {
     const { valid, errors, value } = validateDefinition(this.draft);
+    const { library, api, account } = this.services;
+    const canUpdateCommunity = this.mode === 'edit' && library.meta(this.draft.id)?.publishedCode && api.available && account.user;
     let preview;
     try {
       preview = value ? this.renderPreview(value) : null;
@@ -92,12 +94,13 @@ export class EditorScreen extends Screen {
       !valid && this.showErrors ? h('div', { class: 'errors-box', role: 'alert' }, h('b', {}, 'Fix these before saving:'), h('ul', {}, errors.slice(0, 8).map((error) => h('li', {}, error)))) : null,
       !valid && !this.showErrors ? h('p', { class: 'muted' }, `${errors.length} thing${errors.length === 1 ? '' : 's'} left to fill in.`) : null,
       h('div', { class: 'editor-actions' },
-        h('button', { class: 'primary', type: 'button', onclick: () => this.#save(false) }, '💾 Save'),
-        h('button', { type: 'button', onclick: () => this.#save(true) }, '🎁 Save & share')));
+        h('button', { class: 'primary', type: 'button', onclick: () => this.#save() }, '💾 Save'),
+        canUpdateCommunity ? h('button', { type: 'button', onclick: () => this.#save({ update: true }) }, '🌐 Save & update community') : null,
+        h('button', { type: 'button', onclick: () => this.#save({ share: true }) }, '🎁 Save & share')));
   }
 
-  async #save(andShare) {
-    const { library, progression } = this.services;
+  async #save({ share = false, update = false } = {}) {
+    const { library, progression, sharing } = this.services;
     const isNew = !library.has(this.draft.id);
     const result = library.save(this.draft, { source: ContentSource.CREATED });
     if (!result.ok) {
@@ -109,6 +112,16 @@ export class EditorScreen extends Screen {
     progression.recordCreation(result.definition, { isNew });
     this.app.toaster.show(`${result.definition.name} saved to your Workshop.`, { icon: '💾', tone: 'good' });
     this.app.navigate('workshop', { kind: this.constructor.kind });
-    if (andShare) await openShareDialog(this.app, result.definition.id);
+    if (share) await openShareDialog(this.app, result.definition.id);
+    if (update) {
+      try {
+        const { existing } = await sharing.publish(result.definition.id);
+        if (!existing) this.app.toaster.show(`${result.definition.name} updated for everyone.`, { icon: '🌐', tone: 'good' });
+      } catch (error) {
+        // Still saved locally; the dialog shows what can be done with the community copy.
+        this.app.toaster.error(error.message);
+        await openShareDialog(this.app, result.definition.id);
+      }
+    }
   }
 }

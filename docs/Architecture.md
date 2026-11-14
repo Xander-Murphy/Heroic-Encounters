@@ -18,7 +18,7 @@ The original prototype used Python + Pygame. For a browser game:
             └───────────────┬─────────────────────────────────────┘
                             │ uses services (injected by services.js)
  ┌──────────────┬───────────┼─────────────┬──────────────┬─────────────┐
- │ progression/ │ sharing/  │ content/    │ persistence/ │ analytics/  │
+ │ progression/ │ sharing/  │ content/    │ persistence/ │ insights/   │
  │ Profile      │ ShareSvc  │ Library     │ Storage      │ Analytics   │
  │ Achievements │ Codec     │ Factory     │ adapters     │ sinks       │
  │ DailyChall.  │ Bundles   │ Schema      │ SaveTransfer │             │
@@ -68,4 +68,12 @@ Every definition — built-in, created, pasted, downloaded or uploaded — goes 
 
 ## Server
 
-`server/app.js` builds a request handler from injected dependencies: `Router`, `ContentController` (publish → validate → dedupe by content hash → short code; fetch, list, like, report), `MetricsController` (anonymous events → key metrics), and `StaticFiles`. Storage is the `CommunityStore` interface with `SqliteCommunityStore` (Node's built-in `node:sqlite`) and `MemoryCommunityStore` (optionally snapshotted to JSON). A hosted database would be one more subclass.
+`server/app.js` builds a request handler from injected dependencies: `Router`, `ContentController` (publish → validate → dedupe by content hash → short code; fetch, list, like, report), `MetricsController` (anonymous events → key metrics), `AccountController` (register, sign in/out, cloud save), and `StaticFiles`. Storage is the `CommunityStore` interface with `SqliteCommunityStore` (Node's built-in `node:sqlite`, the local default), `MongoCommunityStore` (used when `MONGODB_URI` is set, for hosts without a persistent disk; the driver is an optional dependency loaded only then) and `MemoryCommunityStore` (optionally snapshotted to JSON). The same API test suite runs against every backend.
+
+## Accounts & cloud saves
+
+- **Sessions** — passwords are hashed with scrypt (`node:crypto`, no packages). Signing in returns a random bearer token; the database stores only its SHA-256. Tokens instead of cookies because the game is often served from a different origin than the server (a downloaded copy on localhost, GitHub Pages).
+- **Local-first sync** — the browser stays the source of truth while playing. `AccountService` sends the save (profile, custom content, deletion records) a few seconds after changes; the server merges it with the stored save under a per-user lock and returns the result, which the client merges again with anything that changed in the meantime.
+- **Merge rules** (`web/js/persistence/cloudSave.js`, shared by client and server like the schema) — counters and renown take the larger value; achievements, codex, play days and daily wins are united; the most recent name wins; for content the newest edit or deletion wins. Merging is idempotent, so syncing twice changes nothing and two devices converge.
+- **Community** — publishing requires an account. Uploads are credited to the account name and record its id; likes and reports count once per account (once per install for guests). Only that account can update an entry (`PUT /api/content/:code`: revalidated like a new upload, keeping its code, likes and downloads) or remove it (`DELETE`). Publishing something the account already uploaded (matched by its main content id) updates that entry too, so a device that lost the code can't create a duplicate. After signing in, the game also asks for the account's uploads (`GET /api/me/content`) and relinks its own creations to them. Uploads from before accounts were required have no owner, so they can't be changed.
+- **One shared server** — set `DEFAULT_SERVER_URL` in `web/js/config.js` to the hosted server so every copy of the game, including downloaded ones, uses the same database and accounts.

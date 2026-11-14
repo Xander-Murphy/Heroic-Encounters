@@ -105,6 +105,15 @@ try {
     await alice.waitForSelector('.workshop-item h3:text("Pip the Bard")');
   });
 
+  await step('Alice creates an account, which publishing needs', async () => {
+    await alice.click('.nav-btn:has-text("Settings")');
+    await alice.fill('input[name=username]', 'Alice');
+    await alice.fill('input[name=password]', 'alice-password');
+    await alice.click('button[value=register]');
+    await alice.waitForSelector('text=Signed in as');
+    await alice.click('.nav-btn:has-text("Workshop")');
+  });
+
   let shareString;
   await step('Alice copies a share string', async () => {
     await alice.click('.workshop-item button:has-text("Share")');
