@@ -7,4 +7,4 @@
  * downloaded ones, shares one community database and one set of accounts.
  * Players can still override it in Settings → Community server.
  */
-export const DEFAULT_SERVER_URL = '';
+export const DEFAULT_SERVER_URL = 'https://heroic-encounters.onrender.com';
