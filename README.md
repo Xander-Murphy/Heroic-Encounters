@@ -74,10 +74,14 @@ docs/                     Architecture, content format, engagement, business, ma
 ## Development
 
 ```bash
-npm test                 # 55 unit, integration and API tests (node:test)
+npm test                 # unit, integration and API tests (node:test)
 npm run test:e2e         # browser test of create → share → import (needs: npm i -D playwright && npx playwright install chromium)
-npm run dev              # server with auto-restart
+npm run dev              # local server with auto-restart; the game it serves uses this server's own database
 node tools/simulate.mjs  # balance check: simulated win rates per dungeon
 ```
+
+Every pull request runs the tests on GitHub (`.github/workflows/test.yml`, including the API tests against MongoDB), and shows ✅ or ❌ before you merge.
+
+`npm run dev` keeps testing off the shared database: the game at http://localhost:8080 uses your local server (the header shows "local dev"). Plain `npm start` uses the shared server set in `web/js/config.js`, like any downloaded copy.
 
 Read `docs/Architecture.md` for the design (SOLID, the patterns used and why) and `docs/ContentFormat.md` for the share/content JSON format.
