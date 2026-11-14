@@ -65,6 +65,8 @@
 .tcg-ability .ability-name { flex: 1; font-weight: bold; line-height: 1.2; }
 .tcg-ability b { font-size: 14px; }
 .tcg-ability.cooling { opacity: 0.45; }
+.tcg-ability.death-rattle { margin-top: 2px; padding-top: 3px; border-top: 1px dashed var(--frame); font-style: italic; }
+.tcg-ability.death-rattle .pips { font-size: 12px; letter-spacing: 0; }
 .tcg-status { font-size: 14px; min-height: 18px; letter-spacing: 2px; }
 .tcg-textbox .planned-action { color: #7a4a00; font-weight: bold; font-size: 12px; line-height: 1.25; }
 .tcg-race {

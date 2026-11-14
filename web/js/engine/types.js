@@ -52,7 +52,20 @@ export const TargetType = freeze({
   ALL_ALLIES: 'all_allies',
   SINGLE_ENEMY: 'single_enemy',
   ALL_ENEMIES: 'all_enemies',
+  // Death rattles only:
+  EVERYONE: 'everyone', // both sides at once
+  KILLER: 'killer', // whoever landed the killing blow
 });
+
+/**
+ * Targets a death rattle may use. It fires automatically, so only targets
+ * that need no choosing: groups, or the character's killer.
+ */
+export const DEATH_RATTLE_TARGETS = freeze([TargetType.ALL_ALLIES, TargetType.ALL_ENEMIES, TargetType.EVERYONE, TargetType.KILLER]);
+
+/** Targets a normal (chosen each round) ability may use. */
+export const ABILITY_TARGETS = freeze(Object.values(TargetType)
+  .filter((target) => target !== TargetType.EVERYONE && target !== TargetType.KILLER));
 
 export const isFriendlyTarget = (targetType) =>
   targetType === TargetType.SELF
@@ -85,6 +98,7 @@ export const ResultKind = freeze({
   IMMUNE: 'immune',
   DISPEL: 'dispel',
   PHASE: 'phase',
+  DEATH_RATTLE: 'death_rattle',
   SKIP: 'skip',
 });
 
@@ -95,7 +109,7 @@ export const SCHOOL_LABELS = freeze({
 
 export const TARGET_LABELS = freeze({
   self: 'Self', single_ally: 'One ally', all_allies: 'All allies',
-  single_enemy: 'One enemy', all_enemies: 'All enemies',
+  single_enemy: 'One enemy', all_enemies: 'All enemies', everyone: 'Everyone', killer: 'Its killer',
 });
 
 export const EFFECT_TYPE_LABELS = freeze({

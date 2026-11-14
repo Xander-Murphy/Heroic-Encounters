@@ -168,7 +168,9 @@ export class ApplyStatusEffect extends AbilityEffect {
   }
 
   apply(source, target, ability) {
-    target.addEffect(this.status.clone());
+    const status = this.status.clone();
+    status.sourceUid = source.uid;
+    target.addEffect(status);
     return new EffectResult({
       source, target, ability,
       school: ability.school,

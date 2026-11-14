@@ -1,12 +1,13 @@
 import { LIMITS } from '../../content/schema.js';
 import {
-  ALL_SCHOOLS, EFFECT_TYPE_LABELS, EffectCategory, EffectType, SCHOOL_LABELS, Stat, TARGET_LABELS,
+  ABILITY_TARGETS, ALL_SCHOOLS, DEATH_RATTLE_TARGETS, EFFECT_TYPE_LABELS, EffectCategory, EffectType, SCHOOL_LABELS, Stat, TARGET_LABELS,
 } from '../../engine/types.js';
 import { h, replaceChildren } from '../dom.js';
 import { checkboxGroup, numberField, selectField, textField } from './fields.js';
 import { defaultEffect, EFFECT_TYPE_OPTIONS } from './presets.js';
 
 const SCHOOL_OPTIONS = ALL_SCHOOLS.map((school) => ({ value: school, label: SCHOOL_LABELS[school] }));
+const targetOptions = (targets) => targets.map((value) => ({ value, label: TARGET_LABELS[value] }));
 const CATEGORY_OPTIONS = Object.values(EffectCategory).map((category) => ({ value: category, label: category[0].toUpperCase() + category.slice(1) }));
 
 /**
@@ -66,10 +67,15 @@ export class StatusEffectEditor {
   }
 }
 
-/** Editor for one ability draft and its list of effects. */
+/**
+ * Editor for one ability draft and its list of effects. With deathRattle set
+ * it edits a death rattle: group targets only, and no cooldown or speed
+ * bonus (it fires once, automatically, on death).
+ */
 export class AbilityEditor {
-  constructor({ ability, index, onChange, onRemove, onMove, canRemove = true }) {
+  constructor({ ability, index, onChange, onRemove, onMove, canRemove = true, deathRattle = false }) {
     this.ability = ability;
+    this.deathRattle = deathRattle;
     this.index = index;
     this.onChange = onChange;
     this.onRemove = onRemove;
@@ -83,19 +89,24 @@ export class AbilityEditor {
     const needsPower = ability.effects.some((effect) => ['damage', 'heal', 'lifesteal'].includes(effect.type));
 
     const effects = ability.effects.map((effect, index) => this.#effectRow(effect, index));
+    const legend = () => `${this.deathRattle ? 'Death rattle' : `Ability ${this.index + 1}`}: ${ability.name || 'Unnamed'}`;
     replaceChildren(this.root,
-      h('legend', {}, `Ability ${this.index + 1}: ${ability.name || 'Unnamed'}`),
+      h('legend', {}, legend()),
       h('div', { class: 'ability-tools' },
         this.onMove ? h('button', { type: 'button', class: 'icon-button', title: 'Move up', 'aria-label': 'Move ability up', onclick: () => this.onMove(-1) }, '▲') : null,
         this.onMove ? h('button', { type: 'button', class: 'icon-button', title: 'Move down', 'aria-label': 'Move ability down', onclick: () => this.onMove(1) }, '▼') : null,
-        this.canRemove ? h('button', { type: 'button', class: 'icon-button danger', title: 'Remove ability', 'aria-label': 'Remove ability', onclick: () => this.onRemove() }, '✕') : null),
+        this.canRemove ? h('button', { type: 'button', class: 'icon-button danger', title: `Remove ${this.deathRattle ? 'death rattle' : 'ability'}`, 'aria-label': `Remove ${this.deathRattle ? 'death rattle' : 'ability'}`, onclick: () => this.onRemove() }, '✕') : null),
       h('div', { class: 'form-grid' },
-        textField({ label: 'Name', draft: ability, key: 'name', max: LIMITS.name, onChange: () => { this.root.querySelector('legend').textContent = `Ability ${this.index + 1}: ${ability.name || 'Unnamed'}`; onChange(); } }),
-        selectField({ label: 'Targets', draft: ability, key: 'target', onChange, options: Object.entries(TARGET_LABELS).map(([value, label]) => ({ value, label })) }),
+        textField({ label: 'Name', draft: ability, key: 'name', max: LIMITS.name, onChange: () => { this.root.querySelector('legend').textContent = legend(); onChange(); } }),
+        selectField({
+          label: 'Targets', draft: ability, key: 'target', onChange,
+          options: targetOptions(this.deathRattle ? DEATH_RATTLE_TARGETS : ABILITY_TARGETS),
+          help: this.deathRattle ? 'Allies means the rest of its team; Everyone hits both sides; Its killer is whoever landed the killing blow (or applied the poison, bleed, etc. that finished it).' : null,
+        }),
         selectField({ label: 'School', draft: ability, key: 'school', onChange, options: SCHOOL_OPTIONS, help: 'Resistances and immunities check the school.' }),
         needsPower ? numberField({ label: 'Power', draft: ability, key: 'power', range: LIMITS.power, onChange, help: 'Scaled by attack: power × (1 + attack/100).' }) : null,
-        numberField({ label: 'Cooldown (rounds)', draft: ability, key: 'cooldown', range: LIMITS.cooldown, onChange }),
-        numberField({ label: 'Speed bonus', draft: ability, key: 'priority', range: LIMITS.priority, onChange, help: 'Added to speed for turn order. 10 = almost always first.' }),
+        this.deathRattle ? null : numberField({ label: 'Cooldown (rounds)', draft: ability, key: 'cooldown', range: LIMITS.cooldown, onChange }),
+        this.deathRattle ? null : numberField({ label: 'Speed bonus', draft: ability, key: 'priority', range: LIMITS.priority, onChange, help: 'Added to speed for turn order. 10 = almost always first.' }),
         textField({ label: 'Description', draft: ability, key: 'description', max: LIMITS.description, multiline: true, onChange })),
       h('div', { class: 'effects' }, h('h4', {}, 'Effects (applied in order)'), effects),
       ability.effects.length < LIMITS.effects[1]

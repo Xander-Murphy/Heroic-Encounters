@@ -23,6 +23,7 @@ export class Character extends Prototype {
     resistances = {},
     abilities = [],
     basicAttack,
+    deathRattle = null,
     portrait = '❔',
     theme = null,
     lore = '',
@@ -41,6 +42,11 @@ export class Character extends Prototype {
     this.abilities = [...abilities];
     // Available at all times, whatever the abilities' cooldowns
     this.basicAttack = basicAttack;
+    // Cast automatically, once, when this character dies (see Combat)
+    this.deathRattle = deathRattle;
+    this.deathRattleFired = false;
+    // uid of whoever landed the killing blow (null while alive or if unknown)
+    this.killedByUid = null;
     this.activeEffects = [];
     this.portrait = portrait;
     this.theme = theme;
@@ -62,6 +68,11 @@ export class Character extends Prototype {
 
   isAlive() {
     return this.health > 0;
+  }
+
+  /** Dead, with a death rattle that hasn't gone off yet. */
+  hasPendingDeathRattle() {
+    return !this.isAlive() && this.deathRattle !== null && !this.deathRattleFired;
   }
 
   /** Alive and not stunned. */
@@ -172,6 +183,7 @@ export class Character extends Prototype {
           }));
         } else {
           const dealt = this.takeDamage(damage, school);
+          if (!this.isAlive()) this.killedByUid = effect.sourceUid;
           results.push(new EffectResult({
             target: this, kind: ResultKind.DAMAGE, amount: dealt, school,
             defeated: !this.isAlive(),

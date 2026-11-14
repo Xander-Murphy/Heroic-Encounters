@@ -2,8 +2,15 @@ import { Action } from './Action.js';
 import { ActionQueue } from './ActionQueue.js';
 import { EffectResult } from './effects/EffectResult.js';
 import { Random } from './Random.js';
-import { Battlefield } from './targeting.js';
+import { Battlefield, resolverFor } from './targeting.js';
 import { ResultKind } from './types.js';
+
+/** Remember who landed each killing blow, so a death rattle can target its killer. */
+function recordKillers(results) {
+  for (const result of results) {
+    if (result.defeated && result.source) result.target.killedByUid = result.source.uid;
+  }
+}
 
 /**
  * One fight between the party and a group of enemies.
@@ -166,6 +173,8 @@ export class Combat {
       if (!action.canExecute()) continue;
 
       const results = action.execute();
+      recordKillers(results);
+      results.push(...this.#triggerDeathRattles());
       for (const character of this.everyone) {
         results.push(...character.checkPhaseTransitions());
       }
@@ -186,11 +195,52 @@ export class Combat {
     for (const character of this.everyone) {
       if (character.isAlive()) results.push(...character.endRound());
     }
+    results.push(...this.#triggerDeathRattles());
     for (const character of this.everyone) {
       results.push(...character.checkPhaseTransitions());
     }
     if (!this.isOver()) this.roundNumber += 1;
     return results;
+  }
+
+  // --- Death rattles -------------------------------------------------------
+
+  /**
+   * Fire the death rattle of everyone who has just died. A death rattle can
+   * kill someone else with a death rattle, so keep going until nothing new
+   * fires. Once the fight is decided nothing more fires: killing the last
+   * enemy always wins, and losing your last hero always loses.
+   */
+  #triggerDeathRattles() {
+    const results = [];
+    let firedAny = true;
+    while (firedAny && !this.isOver()) {
+      firedAny = false;
+      for (const character of this.everyone) {
+        if (this.isOver()) break;
+        if (!character.hasPendingDeathRattle()) continue;
+        firedAny = true;
+        results.push(...this.#fireDeathRattle(character));
+      }
+    }
+    return results;
+  }
+
+  #fireDeathRattle(character) {
+    const ability = character.deathRattle;
+    character.deathRattleFired = true;
+    const targets = resolverFor(ability.target).resolve(character, this.battlefield);
+    // e.g. aimed at its killer, but the killer is already dead
+    const fizzles = targets.length === 0 ? ', but there is no one left to hit' : '';
+    const results = ability.apply(character, targets);
+    recordKillers(results);
+    return [
+      new EffectResult({
+        source: character, target: character, ability, kind: ResultKind.DEATH_RATTLE,
+        description: `${character.name}'s death rattle: ${ability.name}!${fizzles}`,
+      }),
+      ...results,
+    ];
   }
 
   /** Resolve the whole round at once. Returns every EffectResult in order. */

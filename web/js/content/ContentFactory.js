@@ -54,6 +54,7 @@ export class ContentFactory {
       resistances: definition.resistances,
       abilities: definition.abilities.map((ability) => this.createAbility(ability)),
       basicAttack: this.createBasicAttack(definition.basicAttackSchool),
+      deathRattle: definition.deathRattle ? this.createAbility(definition.deathRattle) : null,
       portrait: definition.portrait,
       theme: definition.theme,
       lore: definition.lore,

@@ -22,6 +22,23 @@ function abilityScore(ability) {
   return (effectValue * (TARGET_MULTIPLIER[ability.target] ?? 1) * 2.2) / (ability.cooldown + 1) + ability.priority * 0.3;
 }
 
+/**
+ * A death rattle fires once per fight, so it's valued like an ability on a
+ * long cooldown. Effects that hurt your own side (debuffing allies, healing
+ * enemies or your killer) count against the score; "everyone" mostly cancels out.
+ */
+function deathRattleScore(ability) {
+  if (!ability) return 0;
+  const value = ability.effects.reduce((sum, effect) => {
+    let sign;
+    if (ability.target === 'everyone') sign = 0.2;
+    else sign = effect.isSupportive === (ability.target === 'all_allies') ? 1 : -1;
+    return sum + sign * effect.budgetValue(ability);
+  }, 0);
+  const reach = ability.target === 'killer' ? 1 : 1.7; // one target vs. a group
+  return (value * reach * 2.2) / 4;
+}
+
 /** Score for a validated hero or enemy definition. */
 export function powerScore(definition) {
   const character = factory.createCharacter(definition);
@@ -29,7 +46,7 @@ export function powerScore(definition) {
   const stats = character.maxHealth * 0.4 + character.attack * 2 + character.defense * 5 + character.speed * 2 + resistance * 0.15;
   const abilities = character.abilities.reduce((sum, ability) => sum + abilityScore(ability), 0);
   const phases = (definition.phases ?? []).length * 15;
-  return Math.round(stats + abilities + phases);
+  return Math.round(stats + abilities + phases + deathRattleScore(character.deathRattle));
 }
 
 const average = (values) => values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length);

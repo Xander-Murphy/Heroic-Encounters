@@ -1,7 +1,7 @@
 import { defaultBehaviorRegistry } from '../engine/behaviors/BehaviorRegistry.js';
 import { defaultEffectRegistry } from '../engine/effects/EffectRegistry.js';
 import {
-  ALL_SCHOOLS, EffectCategory, EffectType, EnemyRank, Stat, TargetType,
+  ABILITY_TARGETS, ALL_SCHOOLS, DEATH_RATTLE_TARGETS, EffectCategory, EffectType, EnemyRank, Stat, TargetType,
 } from '../engine/types.js';
 
 /**
@@ -209,9 +209,11 @@ class EffectValidator extends DefinitionValidator {
 }
 
 class AbilityValidator extends DefinitionValidator {
-  constructor(effectValidator) {
+  constructor(effectValidator, { targets = ABILITY_TARGETS, defaultTarget = TargetType.SINGLE_ENEMY } = {}) {
     super();
     this.effectValidator = effectValidator;
+    this.targets = targets;
+    this.defaultTarget = defaultTarget;
   }
 
   normalize(definition, context, path) {
@@ -225,7 +227,7 @@ class AbilityValidator extends DefinitionValidator {
       description: context.text(definition, 'description', `${path}.description`, { max: LIMITS.description, required: false }),
       power: context.number(definition, 'power', `${path}.power`, LIMITS.power, { fallback: 0 }),
       cooldown: context.number(definition, 'cooldown', `${path}.cooldown`, LIMITS.cooldown, { fallback: 0 }),
-      target: context.choice(definition, 'target', `${path}.target`, Object.values(TargetType), { required: true, fallback: TargetType.SINGLE_ENEMY }),
+      target: context.choice(definition, 'target', `${path}.target`, this.targets, { required: true, fallback: this.defaultTarget }),
       school: context.choice(definition, 'school', `${path}.school`, ALL_SCHOOLS, { fallback: 'physical' }),
       priority: context.number(definition, 'priority', `${path}.priority`, LIMITS.priority, { fallback: 0 }),
       animation: context.choice(definition, 'animation', `${path}.animation`, ['lunge', 'projectile', 'arrow', 'burst', 'spin'], { fallback: null }),
@@ -239,11 +241,28 @@ class AbilityValidator extends DefinitionValidator {
   }
 }
 
+/**
+ * A death rattle is an ability cast once, automatically, on death. It only
+ * hits groups (see DEATH_RATTLE_TARGETS) and has no cooldown or turn order.
+ */
+class DeathRattleValidator extends AbilityValidator {
+  constructor(effectValidator) {
+    super(effectValidator, { targets: DEATH_RATTLE_TARGETS, defaultTarget: TargetType.ALL_ENEMIES });
+  }
+
+  normalize(definition, context, path = 'deathRattle') {
+    const value = super.normalize(definition, context, path);
+    if (value) Object.assign(value, { cooldown: 0, priority: 0, animation: null });
+    return value;
+  }
+}
+
 /** Shared fields for heroes and enemies (Inheritance mirrors the engine's Character). */
 class CharacterValidator extends DefinitionValidator {
-  constructor(abilityValidator) {
+  constructor(abilityValidator, deathRattleValidator) {
     super();
     this.abilityValidator = abilityValidator;
+    this.deathRattleValidator = deathRattleValidator;
   }
 
   healthRange() {
@@ -277,6 +296,9 @@ class CharacterValidator extends DefinitionValidator {
       abilities: context.list(definition, 'abilities', 'abilities', LIMITS.abilities)
         .map((ability, index) => this.abilityValidator.normalize(ability, context, `abilities[${index}]`))
         .filter(Boolean),
+      deathRattle: definition.deathRattle === undefined || definition.deathRattle === null
+        ? null
+        : this.deathRattleValidator.normalize(definition.deathRattle, context),
     };
   }
 }
@@ -296,8 +318,8 @@ class HeroValidator extends CharacterValidator {
 }
 
 class EnemyValidator extends CharacterValidator {
-  constructor(abilityValidator, phaseStatusValidator) {
-    super(abilityValidator);
+  constructor(abilityValidator, deathRattleValidator, phaseStatusValidator) {
+    super(abilityValidator, deathRattleValidator);
     this.phaseStatusValidator = phaseStatusValidator;
   }
 
@@ -361,12 +383,14 @@ class DungeonValidator extends DefinitionValidator {
 /* -------------------------------- Facade -------------------------------- */
 
 const statusValidator = new StatusEffectValidator();
-const abilityValidator = new AbilityValidator(new EffectValidator(statusValidator));
+const effectValidator = new EffectValidator(statusValidator);
+const abilityValidator = new AbilityValidator(effectValidator);
+const deathRattleValidator = new DeathRattleValidator(effectValidator);
 const phaseStatusValidator = new StatusEffectValidator({ durationRange: LIMITS.phaseDuration });
 
 const VALIDATORS = Object.freeze({
-  hero: new HeroValidator(abilityValidator),
-  enemy: new EnemyValidator(abilityValidator, phaseStatusValidator),
+  hero: new HeroValidator(abilityValidator, deathRattleValidator),
+  enemy: new EnemyValidator(abilityValidator, deathRattleValidator, phaseStatusValidator),
   dungeon: new DungeonValidator(),
 });
 
