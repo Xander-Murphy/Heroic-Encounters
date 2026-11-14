@@ -1,4 +1,3 @@
-import { DEFAULT_SERVER_URL } from '../../config.js';
 import { copyToClipboard, h, percent } from '../dom.js';
 import { Screen, screenHeader } from '../Screen.js';
 import { Modal } from '../components/Modal.js';
@@ -74,8 +73,10 @@ export class SettingsScreen extends Screen {
 
         h('section', { class: 'panel' },
           h('h2', {}, 'Community server'),
-          h('p', { class: 'muted' }, DEFAULT_SERVER_URL
-            ? `Leave empty to use the shared server (${DEFAULT_SERVER_URL}). Set an address to use a different one, e.g. one you host for friends.`
+          h('p', { class: 'muted' }, this.services.devServer
+            ? 'Dev mode (npm run dev): leave empty to use this local server and its database, so testing doesn\'t touch the shared one.'
+            : this.services.defaultServerUrl
+            ? `Leave empty to use the shared server (${this.services.defaultServerUrl}). Set an address to use a different one, e.g. one you host for friends.`
             : 'Leave empty to use the server this page came from. Set an address (e.g. https://my-server.example) if you host the game files somewhere else, like GitHub Pages.'),
           this.#serverForm()),
 
@@ -84,14 +85,14 @@ export class SettingsScreen extends Screen {
   }
 
   #serverForm() {
-    const { settings, saveSettings, api } = this.services;
+    const { settings, saveSettings, api, defaultServerUrl } = this.services;
     const input = h('input', { type: 'url', placeholder: 'https://…', value: settings.serverUrl, 'aria-label': 'Server address' });
     return h('form', {
       class: 'row-left',
       onsubmit: async (event) => {
         event.preventDefault();
         saveSettings({ serverUrl: input.value.trim() });
-        api.baseUrl = (input.value.trim() || DEFAULT_SERVER_URL).replace(/\/+$/, '');
+        api.baseUrl = (input.value.trim() || defaultServerUrl).replace(/\/+$/, '');
         const ok = await api.checkHealth();
         this.app.toaster.show(ok ? 'Connected to the community server.' : 'Could not reach that server. Playing offline.', { icon: ok ? '🌐' : '🔌', tone: ok ? 'good' : 'info' });
         location.reload();

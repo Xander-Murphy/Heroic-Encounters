@@ -156,7 +156,8 @@ export class App {
       this.status.textContent = '● Connecting…';
       this.status.title = 'Waking up the community server. This can take up to a minute; you can play in the meantime.';
     } else {
-      this.status.textContent = online ? `● Online${user ? ` · ${user.username}` : ''}` : '● Offline';
+      const local = this.services.devServer && !this.services.api.baseUrl ? ' (local dev)' : '';
+      this.status.textContent = online ? `● Online${local}${user ? ` · ${user.username}` : ''}` : '● Offline';
       this.status.title = online ? 'Connected to the community server' : 'Playing offline — community features need the server, everything else works';
     }
     this.refresh();

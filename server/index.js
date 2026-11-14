@@ -14,6 +14,8 @@ import { createStore } from './storage/createStore.js';
  *   STORAGE=json npm start        → JSON file instead of SQLite
  *   DATA_DIR=/var/lib/he npm start
  *   MONGODB_URI=mongodb+srv://… npm start  → MongoDB (needs `npm install`; see docs/Hosting.md)
+ *   npm run dev                   → dev mode: auto-restart, and the game opened from
+ *                                   localhost uses this server instead of the shared one
  */
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const config = {
@@ -24,13 +26,15 @@ const config = {
   mongoUri: process.env.MONGODB_URI ?? '',
   mongoDbName: process.env.MONGODB_DB || undefined,
   staticDir: path.join(root, 'web'),
+  dev: process.argv.includes('--dev'),
 };
 
 const { store, kind } = await createStore({ ...config, kind: config.storage });
-const server = http.createServer(createApp({ store, staticDir: config.staticDir, storageKind: kind }));
+const server = http.createServer(createApp({ store, staticDir: config.staticDir, storageKind: kind, dev: config.dev }));
 
 server.listen(config.port, config.host, () => {
   console.log(`Heroic Encounters is running at http://localhost:${config.port}  (community storage: ${kind})`);
+  if (config.dev) console.log('Dev mode: the game at that address uses this server and its database, not the shared one.');
 });
 
 const shutdown = async () => {

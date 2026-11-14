@@ -12,13 +12,13 @@ import { Router } from './Router.js';
  * whole app against an in-memory store.
  */
 export function createApp({
-  store, staticDir, storageKind = 'unknown',
+  store, staticDir, storageKind = 'unknown', dev = false,
   rateLimiter = new RateLimiter({ capacity: 30, perMinute: 30 }),
   authRateLimiter = new RateLimiter({ capacity: 10, perMinute: 5 }),
 }) {
   const router = new Router();
   const authenticator = new Authenticator({ store });
-  router.get('/api/health', ({ response }) => sendJson(response, 200, { ok: true, storage: storageKind, version: 1, accounts: true }));
+  router.get('/api/health', ({ response }) => sendJson(response, 200, { ok: true, storage: storageKind, version: 1, accounts: true, dev }));
   new ContentController({ store, rateLimiter, authenticator }).register(router);
   new AccountController({ store, authenticator, rateLimiter: authRateLimiter }).register(router);
   new MetricsController({ store, rateLimiter: new RateLimiter({ capacity: 60, perMinute: 60 }) }).register(router);
