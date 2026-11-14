@@ -8,7 +8,7 @@ import { EditorScreen } from './EditorScreen.js';
 import {
   numberField, portraitPicker, section, selectField, textField, themePicker,
 } from './fields.js';
-import { ABILITY_PRESETS } from './presets.js';
+import { ABILITY_PRESETS, DEATH_RATTLE_PRESETS } from './presets.js';
 
 /**
  * Form sections shared by heroes and enemies (they share the engine's
@@ -52,7 +52,31 @@ export class CharacterEditorScreen extends EditorScreen {
       })), { open: false, description: 'Positive values reduce damage from that school; negative values are weaknesses.' }),
       ...this.renderExtraSections(),
       section(`Abilities (${draft.abilities.length}/${LIMITS.abilities[1]})`, [this.#abilityList()], { description: 'Everyone also has a Basic Attack that is always available.' }),
+      section('Death rattle (optional)', [this.#deathRattle()], {
+        open: Boolean(draft.deathRattle),
+        description: 'Cast automatically, once, when this card dies. It can help (buff allies, hurt enemies) or be a drawback that balances a strong card. It does not fire if that death ends the fight.',
+      }),
     ];
+  }
+
+  #deathRattle() {
+    const { draft } = this;
+    if (draft.deathRattle) {
+      return h('div', { class: 'ability-list wide' }, new AbilityEditor({
+        ability: draft.deathRattle,
+        index: 0,
+        deathRattle: true,
+        onChange: this.update,
+        onRemove: () => { draft.deathRattle = null; this.rebuild(); },
+      }).render());
+    }
+    return h('div', { class: 'ability-adder wide' },
+      h('label', {}, 'Add a death rattle from a template:'),
+      h('div', { class: 'preset-grid' }, DEATH_RATTLE_PRESETS.map((preset) => h('button', {
+        type: 'button',
+        class: 'small',
+        onclick: () => { draft.deathRattle = preset.build(); this.rebuild(); },
+      }, preset.label))));
   }
 
   #abilityList() {

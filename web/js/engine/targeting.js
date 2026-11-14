@@ -103,6 +103,25 @@ class AllEnemiesResolver extends TargetResolver {
   }
 }
 
+/** Every living character on both sides (used by death rattles). */
+class EveryoneResolver extends TargetResolver {
+  candidates(actor, battlefield) {
+    return living([...battlefield.alliesOf(actor), ...battlefield.enemiesOf(actor)]);
+  }
+}
+
+/**
+ * The character who killed `actor`, if they're still alive (used by death
+ * rattles). Ignores taunt: a death rattle aimed at the killer always finds them.
+ */
+class KillerResolver extends TargetResolver {
+  candidates(actor, battlefield) {
+    if (actor.killedByUid === null) return [];
+    const everyone = [...battlefield.alliesOf(actor), ...battlefield.enemiesOf(actor)];
+    return living(everyone.filter((character) => character.uid === actor.killedByUid));
+  }
+}
+
 // Resolvers hold no state, so one shared instance per target type is enough.
 const RESOLVERS = Object.freeze({
   [TargetType.SELF]: new SelfResolver(),
@@ -110,6 +129,8 @@ const RESOLVERS = Object.freeze({
   [TargetType.ALL_ALLIES]: new AllAlliesResolver(),
   [TargetType.SINGLE_ENEMY]: new SingleEnemyResolver(),
   [TargetType.ALL_ENEMIES]: new AllEnemiesResolver(),
+  [TargetType.EVERYONE]: new EveryoneResolver(),
+  [TargetType.KILLER]: new KillerResolver(),
 });
 Object.values(RESOLVERS).forEach((resolver) => Object.defineProperty(resolver, SHARED, { value: true }));
 

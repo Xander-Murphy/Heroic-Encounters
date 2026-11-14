@@ -34,6 +34,14 @@ function tooltipContent(character) {
     h('b', {}, ability.name), h('span', { class: 'tip-meta' }, ` ${abilityDetails(ability)}`),
     h('div', {}, ability.description || ability.summary())));
 
+  const rattle = character.deathRattle;
+  const deathRattle = rattle ? [
+    h('div', { class: 'tip-section' }, character.deathRattleFired ? 'Death rattle (used)' : 'Death rattle'),
+    h('div', { class: 'tip-ability' },
+      h('b', {}, `💀 ${rattle.name}`), h('span', { class: 'tip-meta' }, ` ${abilityDetails(rattle)}`),
+      h('div', {}, rattle.description || `On death: ${rattle.summary()}`)),
+  ] : null;
+
   return h('div', {},
     h('div', { class: 'tip-title' }, `${character.portrait} ${character.name}`),
     h('div', { class: 'tip-sub' }, `${character.typeLine} · HP ${character.health}/${character.maxHealth}`),
@@ -41,6 +49,7 @@ function tooltipContent(character) {
     h('div', { class: 'tip-section' }, 'Buffs & debuffs'),
     effects.length ? effects : h('div', { class: 'tip-none' }, 'No active effects.'),
     h('div', { class: 'tip-section' }, 'Abilities'), abilities,
+    deathRattle,
     h('div', { class: 'tip-section' }, 'Defenses'),
     h('div', {}, `Defense ${character.getStat(Stat.DEFENSE)}: reduces every hit by that much.`),
     resistances);
@@ -65,6 +74,13 @@ export function characterCard(character, options = {}) {
     h('b', {}, ability.isSupportive && ability.power ? `+${ability.power}` : (ability.power || ''))));
   if (!abilityRows.length) {
     abilityRows.push(h('div', { class: 'tcg-ability' }, h('span', { class: 'pips' }), h('span', { class: 'ability-name' }, 'Basic Attack'), h('b', {}, character.basicAttack.power)));
+  }
+  const rattle = character.deathRattle;
+  if (rattle) {
+    abilityRows.push(h('div', { class: ['tcg-ability', 'death-rattle', character.deathRattleFired && 'cooling'], title: 'Death rattle: cast automatically when this card dies' },
+      h('span', { class: 'pips' }, '💀'),
+      h('span', { class: 'ability-name' }, rattle.name),
+      h('b', {}, rattle.isSupportive && rattle.power ? `+${rattle.power}` : (rattle.power || ''))));
   }
 
   const card = h('div', {

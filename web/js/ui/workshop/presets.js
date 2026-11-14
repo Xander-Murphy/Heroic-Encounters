@@ -23,6 +23,22 @@ export const ABILITY_PRESETS = Object.freeze([
   { id: 'cleanse', label: '🫧 Cleanse allies', build: () => ability('Purify', { power: 8, cooldown: 3, target: 'all_allies', school: 'holy', effects: [clone(CLEANSE_ALL), { type: 'heal' }] }) },
 ]);
 
+/**
+ * Starting points for death rattles. They can help (buff allies, hurt
+ * enemies) or be a drawback that balances a strong card (hurt everyone,
+ * weaken your own team).
+ */
+const rattle = (name, fields) => ability(name, { cooldown: 0, target: 'all_enemies', ...fields });
+export const DEATH_RATTLE_PRESETS = Object.freeze([
+  { id: 'blast', label: '💥 Damage all enemies', build: () => rattle('Final Blast', { power: 15, school: 'fire', effects: [{ type: 'damage' }] }) },
+  { id: 'vengeance', label: '🗡️ Strike back at its killer', build: () => rattle('Vengeance', { power: 30, target: 'killer', school: 'shadow', effects: [{ type: 'damage' }] }) },
+  { id: 'avenge', label: '🚩 Buff all allies', build: () => rattle('Avenge Me', { target: 'all_allies', effects: [{ type: 'status', status: clone(STATUS.battleFury) }] }) },
+  { id: 'curse', label: '🕯️ Weaken all enemies', build: () => rattle('Dying Curse', { school: 'shadow', effects: [{ type: 'status', status: clone(STATUS.frailty) }] }) },
+  { id: 'martyr', label: '💞 Heal all allies', build: () => rattle("Martyr's Gift", { power: 15, target: 'all_allies', school: 'holy', effects: [{ type: 'heal' }] }) },
+  { id: 'explode', label: '☠️ Damage everyone (drawback)', build: () => rattle('Volatile Burst', { power: 12, target: 'everyone', effects: [{ type: 'damage' }] }) },
+  { id: 'despair', label: '😞 Weaken allies (drawback)', build: () => rattle('Despair', { target: 'all_allies', school: 'shadow', effects: [{ type: 'status', status: clone(STATUS.armorBreak) }] }) },
+]);
+
 export const EFFECT_TYPE_OPTIONS = Object.freeze([
   { value: 'damage', label: 'Deal damage' },
   { value: 'heal', label: 'Heal' },

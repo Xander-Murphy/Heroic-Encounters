@@ -35,6 +35,9 @@ export class StatusEffect extends Prototype {
     this.tickSchool = tickSchool;
     this.description = description;
     this.icon = icon;
+    // uid of the character who applied it (an id, not the character, so cloning
+    // the carrier never clones the applier). Credits damage-over-time kills.
+    this.sourceUid = null;
   }
 
   get isHarmful() {

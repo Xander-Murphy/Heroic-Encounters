@@ -161,7 +161,7 @@ export class Animator {
           ], 350);
         } else if (result.kind === ResultKind.HEAL) {
           this.#play(element, [{ transform: 'scale(1.06)', filter: 'brightness(1.6) saturate(1.5)' }, { transform: 'none', filter: 'none' }], 600);
-        } else if (result.kind === ResultKind.PHASE) {
+        } else if (result.kind === ResultKind.PHASE || result.kind === ResultKind.DEATH_RATTLE) {
           this.#play(element, [{ transform: 'scale(1)' }, { transform: 'scale(1.15)', filter: 'brightness(1.8)' }, { transform: 'scale(1)' }], 700);
         }
         if (result.defeated) this.#play(element, [{ opacity: 1, transform: 'scale(1.12)' }, { opacity: 0.35, transform: 'scale(1)' }], 600);
@@ -179,6 +179,7 @@ export class Animator {
       case ResultKind.STATUS: return { text: result.description.split(' gains ')[1] ?? '', color: '#9ad8ff' };
       case ResultKind.DISPEL: return { text: result.amount ? 'Cleansed' : '', color: '#ffffff' };
       case ResultKind.PHASE: return { text: 'Phase!', color: '#ff4a3a' };
+      case ResultKind.DEATH_RATTLE: return { text: '💀 Death Rattle!', color: '#c9a2ff' };
       case ResultKind.SKIP: return { text: 'Stunned', color: '#ffd84a' };
       default: return { text: '', color: '#fff' };
     }
