@@ -123,7 +123,7 @@ export class AbilityEditor {
       key: 'type',
       options: EFFECT_TYPE_OPTIONS,
       onChange: (type) => {
-        ability.effects[index] = defaultEffect(type);
+        ability.effects[index] = { ...defaultEffect(type), ...(effect.self ? { self: true } : {}) };
         if (['damage', 'heal', 'lifesteal'].includes(type) && !ability.power) ability.power = 20;
         this.render();
         onChange();
@@ -142,8 +142,22 @@ export class AbilityEditor {
         }));
     }
 
+    // Not for death rattles: the caster is dead when one fires
+    const appliesTo = this.deathRattle ? null : selectField({
+      label: 'Applies to',
+      draft: { self: effect.self ? 'self' : 'targets' },
+      key: 'self',
+      options: [{ value: 'targets', label: "The ability's targets" }, { value: 'self', label: 'The caster (once)' }],
+      onChange: (value) => {
+        if (value === 'self') effect.self = true;
+        else delete effect.self;
+        onChange();
+      },
+      help: 'e.g. an AoE taunt that also gives the caster +defense.',
+    });
+
     return h('div', { class: 'effect-row' },
-      h('div', { class: 'effect-head' }, typeSelect,
+      h('div', { class: 'effect-head' }, typeSelect, appliesTo,
         ability.effects.length > 1 ? h('button', { type: 'button', class: 'icon-button danger', 'aria-label': 'Remove effect', onclick: () => { ability.effects.splice(index, 1); this.render(); onChange(); } }, '✕') : null),
       details);
   }

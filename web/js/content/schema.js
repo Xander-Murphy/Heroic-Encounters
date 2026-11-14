@@ -190,6 +190,13 @@ class EffectValidator extends DefinitionValidator {
       context.error(`${path}.type`, `must be one of: ${defaultEffectRegistry.types().join(', ')}`);
       return null;
     }
+    const value = this.#normalizeType(definition, context, path);
+    // Only written when set, so effects that hit the targets keep their old shape
+    if (definition.self === true) value.self = true;
+    return value;
+  }
+
+  #normalizeType(definition, context, path) {
     switch (definition.type) {
       case 'status':
         return { type: 'status', status: this.statusValidator.normalize(definition.status, context, `${path}.status`) };
@@ -237,7 +244,24 @@ class AbilityValidator extends DefinitionValidator {
     };
     const dealsDamage = value.effects.some((effect) => effect.type === 'damage' || effect.type === 'lifesteal' || effect.type === 'heal');
     if (dealsDamage && value.power === 0) context.error(`${path}.power`, 'damage and healing need power above 0');
+    migrateSelfTaunt(value);
     return value;
+  }
+}
+
+const isTaunt = (effect) => effect?.type === 'status' && effect.status?.type === EffectType.TAUNT;
+
+/**
+ * Taunt used to be a status the caster put on itself ("enemies must target
+ * me"). It is now put on the enemies ("you must attack whoever taunted you").
+ * Rewrite an old-style self-cast taunt into the AoE taunt it meant: aim it at
+ * all enemies, and keep its other effects (e.g. a defense buff) on the caster.
+ */
+function migrateSelfTaunt(ability) {
+  if (ability.target !== TargetType.SELF || !ability.effects.some(isTaunt)) return;
+  ability.target = TargetType.ALL_ENEMIES;
+  for (const effect of ability.effects) {
+    if (!isTaunt(effect)) effect.self = true;
   }
 }
 
@@ -252,7 +276,10 @@ class DeathRattleValidator extends AbilityValidator {
 
   normalize(definition, context, path = 'deathRattle') {
     const value = super.normalize(definition, context, path);
-    if (value) Object.assign(value, { cooldown: 0, priority: 0, animation: null });
+    if (value) {
+      Object.assign(value, { cooldown: 0, priority: 0, animation: null });
+      value.effects.forEach((effect) => delete effect.self); // the caster is dead when it fires
+    }
     return value;
   }
 }

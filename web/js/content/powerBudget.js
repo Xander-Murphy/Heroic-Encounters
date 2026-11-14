@@ -18,8 +18,11 @@ const TARGET_MULTIPLIER = {
 const factory = new ContentFactory();
 
 function abilityScore(ability) {
-  const effectValue = ability.effects.reduce((sum, effect) => sum + effect.budgetValue(ability), 0);
-  return (effectValue * (TARGET_MULTIPLIER[ability.target] ?? 1) * 2.2) / (ability.cooldown + 1) + ability.priority * 0.3;
+  const valueOf = (effects) => effects.reduce((sum, effect) => sum + effect.budgetValue(ability), 0);
+  // Caster-only effects land once, on one character, whatever the ability targets
+  const onTargets = valueOf(ability.effects.filter((effect) => !effect.appliesToSelf)) * (TARGET_MULTIPLIER[ability.target] ?? 1);
+  const onSelf = valueOf(ability.effects.filter((effect) => effect.appliesToSelf)) * TARGET_MULTIPLIER.self;
+  return ((onTargets + onSelf) * 2.2) / (ability.cooldown + 1) + ability.priority * 0.3;
 }
 
 /**

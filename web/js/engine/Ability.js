@@ -53,14 +53,21 @@ export class Ability extends Prototype {
     return true;
   }
 
-  /** Run every effect on every living target and return the EffectResults. */
+  /**
+   * Run every effect on every living target, then any caster-only effects
+   * once on the caster. Returns the EffectResults.
+   */
   apply(source, targets) {
     const results = [];
+    const onTargets = this.effects.filter((effect) => !effect.appliesToSelf);
     for (const target of targets) {
-      for (const effect of this.effects) {
+      for (const effect of onTargets) {
         if (!target.isAlive()) break;
         results.push(...[effect.apply(source, target, this)].flat());
       }
+    }
+    for (const effect of this.effects.filter((each) => each.appliesToSelf)) {
+      if (source.isAlive()) results.push(...[effect.apply(source, source, this)].flat());
     }
     return results;
   }
@@ -74,6 +81,11 @@ export class Ability extends Prototype {
   }
 
   summary() {
-    return this.effects.map((effect) => effect.summary(this)).filter(Boolean).join('. ');
+    return this.effects
+      .map((effect) => {
+        const text = effect.summary(this);
+        return text && effect.appliesToSelf ? `${text} to self` : text;
+      })
+      .filter(Boolean).join('. ');
   }
 }

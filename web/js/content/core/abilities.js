@@ -17,7 +17,7 @@ export const STATUS = Object.freeze({
   armorBreak: status({ name: 'Armor Break', icon: '🔨', type: 'debuff', category: 'physical', magnitude: 4, duration: 2, stat: 'defense' }),
   battleFury: status({ name: 'Battle Fury', icon: '😡', type: 'buff', category: 'physical', magnitude: 12, duration: 3, stat: 'attack' }),
   stun: status({ name: 'Stunned', icon: '💫', type: 'stun', category: 'physical', duration: 1 }),
-  taunt: status({ name: 'Challenged', icon: '📣', type: 'taunt', category: 'physical', duration: 2 }),
+  taunt: status({ name: 'Taunted', icon: '📣', type: 'taunt', category: 'physical', duration: 2 }),
   guard: status({ name: 'Guarded', icon: '🧱', type: 'buff', category: 'physical', magnitude: 4, duration: 2, stat: 'defense' }),
   rally: status({ name: 'Rallied', icon: '🚩', type: 'buff', category: 'physical', magnitude: 4, duration: 2, stat: 'defense' }),
   rejuvenation: status({ name: 'Rejuvenation', icon: '🌱', type: 'heal_over_time', category: 'magical', magnitude: 12, duration: 3 }),
@@ -74,7 +74,7 @@ export const HERO_ABILITIES = Object.freeze({
 
   // Thorne — Guardian / Bulwark
   shieldBash: ability({ id: 'shield_bash', name: 'Shield Bash', description: 'Physical damage that stuns. Fast enough to interrupt.', power: 16, cooldown: 3, priority: 4, effects: [damage, applies(STATUS.stun)] }),
-  challenge: ability({ id: 'challenge', name: 'Challenge', description: 'Enemies must target Thorne for 2 rounds. +4 defense.', cooldown: 3, target: 'self', priority: 10, effects: [applies(STATUS.taunt), applies(STATUS.guard)] }),
+  challenge: ability({ id: 'challenge', name: 'Challenge', description: 'AoE taunt: enemies must target Thorne for 2 rounds. +4 defense.', cooldown: 3, target: 'all_enemies', priority: 10, effects: [applies(STATUS.taunt), { ...applies(STATUS.guard), self: true }] }),
   rally: ability({ id: 'rally', name: 'Rally', description: '+4 defense to every ally for 2 rounds.', cooldown: 4, target: 'all_allies', effects: [applies(STATUS.rally)], animation: 'burst' }),
 
   // Brannoc — Wildheart / Grove

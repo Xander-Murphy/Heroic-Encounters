@@ -72,8 +72,9 @@ export class StatusEffect extends Prototype {
     return this.isActive() && this.type === EffectType.STUN;
   }
 
-  forcesTargeting() {
-    return this.isActive() && this.type === EffectType.TAUNT;
+  /** uid of the character the carrier has been taunted into attacking, or null. */
+  forcedTargetUid() {
+    return this.isActive() && this.type === EffectType.TAUNT ? this.sourceUid : null;
   }
 
   /**
@@ -103,7 +104,7 @@ export class StatusEffect extends Prototype {
       case EffectType.HEAL_OVER_TIME: return `Heals ${this.magnitude} each round.`;
       case EffectType.IMMUNITY: return `Immune to ${schools} damage.`;
       case EffectType.STUN: return 'Cannot act.';
-      case EffectType.TAUNT: return 'Enemies must target this character.';
+      case EffectType.TAUNT: return 'Must attack whoever taunted it.';
       default: return '';
     }
   }
