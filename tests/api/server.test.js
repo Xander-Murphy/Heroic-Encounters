@@ -49,6 +49,15 @@ for (const kind of ['memory', 'sqlite', ...(mongoUri ? ['mongo'] : [])]) {
     const publish = (body) => fetch(`${base}/api/content`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${publisher}` }, body: JSON.stringify(body) });
     const shareOf = (items) => codec.encode(createBundle({ items, author: 'Tester' }));
 
+    it('reports dev mode only when started for development', async () => {
+      assert.equal((await (await fetch(`${base}/api/health`)).json()).dev, false);
+      const devServer = http.createServer(createApp({ store, staticDir: null, dev: true }));
+      await new Promise((resolve) => { devServer.listen(0, resolve); });
+      const health = await (await fetch(`http://localhost:${devServer.address().port}/api/health`)).json();
+      devServer.close();
+      assert.equal(health.dev, true);
+    });
+
     it('serves the game and blocks path traversal', async () => {
       const page = await fetch(`${base}/`);
       assert.equal(page.status, 200);

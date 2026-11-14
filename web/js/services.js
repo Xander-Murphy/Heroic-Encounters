@@ -22,7 +22,7 @@ export const defaultSettings = () => ({
  * Nothing else in the game constructs services, so swapping an
  * implementation (another storage, a fake API in tests) happens here only.
  */
-export function createServices({ adapter = createDefaultAdapter(), fetchImpl } = {}) {
+export function createServices({ adapter = createDefaultAdapter(), fetchImpl, devServer = false } = {}) {
   const events = new EventBus();
 
   const settingsStore = new JsonStore(adapter, 'settings', defaultSettings());
@@ -36,7 +36,9 @@ export function createServices({ adapter = createDefaultAdapter(), fetchImpl } =
   }
 
   const library = new ContentLibrary({ store: new JsonStore(adapter, 'library', []), deletedStore: new JsonStore(adapter, 'library-deleted', {}) });
-  const api = new ApiClient({ baseUrl: settings.serverUrl || DEFAULT_SERVER_URL, fetchImpl });
+  // Under `npm run dev` the default is the local server ('' = same origin), so testing stays off the shared database.
+  const defaultServerUrl = devServer ? '' : DEFAULT_SERVER_URL;
+  const api = new ApiClient({ baseUrl: settings.serverUrl || defaultServerUrl, fetchImpl });
   const account = new AccountService({
     api, store: new JsonStore(adapter, 'account', { token: null, user: null, lastSyncedAt: null }), profile, profileStore, library, events,
   });
@@ -78,6 +80,8 @@ export function createServices({ adapter = createDefaultAdapter(), fetchImpl } =
     },
     library,
     api,
+    devServer,
+    defaultServerUrl,
     account,
     progression,
     sharing,

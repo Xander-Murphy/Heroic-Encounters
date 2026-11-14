@@ -75,7 +75,7 @@ Open the game link. The top right shows **● Connecting…** for up to a minute
 - **Sleeping server.** Render's free tier sleeps after 15 minutes without visitors. The next visitor waits up to a minute for accounts and community features; the game itself is playable immediately. Before a demo or grading, open the link a minute early to wake it.
 - **Free limits.** Render gives 750 free hours a month, enough for one service running all month. Atlas M0 holds 512 MB, which is a lot of heroes and saves.
 - **Where your data lives.** In Atlas under **Database → Browse Collections → heroic-encounters**: `users`, `saves`, `content`, and so on. Passwords are stored only as scrypt hashes.
-- **Local development is unchanged.** `npm start` without `MONGODB_URI` uses `data/community.db` (SQLite) and needs no `npm install`. To run the API tests against MongoDB too, set `MONGODB_TEST_URI` (e.g. `mongodb://127.0.0.1:27017`) and run `npm test`.
+- **Develop with `npm run dev`.** It uses `data/community.db` (SQLite), needs no `npm install`, and the game at http://localhost:8080 talks to it instead of the shared server (the header shows "local dev"). Plain `npm start` serves the game but uses the shared server, like a downloaded copy. To run the API tests against MongoDB too, set `MONGODB_TEST_URI` (e.g. `mongodb://127.0.0.1:27017`) and run `npm test`.
 
 ## Troubleshooting
 
