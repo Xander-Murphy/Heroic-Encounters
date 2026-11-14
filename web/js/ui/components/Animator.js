@@ -179,6 +179,7 @@ export class Animator {
       case ResultKind.STATUS: return { text: result.description.split(' gains ')[1] ?? '', color: '#9ad8ff' };
       case ResultKind.DISPEL: return { text: result.amount ? 'Cleansed' : '', color: '#ffffff' };
       case ResultKind.PHASE: return { text: 'Phase!', color: '#ff4a3a' };
+      case ResultKind.REDIRECT: return { text: 'Taunted!', color: '#ffb347' };
       case ResultKind.DEATH_RATTLE: return { text: '💀 Death Rattle!', color: '#c9a2ff' };
       case ResultKind.SKIP: return { text: 'Stunned', color: '#ffd84a' };
       default: return { text: '', color: '#fff' };

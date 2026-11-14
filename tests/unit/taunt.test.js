@@ -150,3 +150,59 @@ describe('Old-style taunts (saved before taunts moved onto the enemy)', () => {
     assert.equal(value.abilities[0].effects[0].self, undefined);
   });
 });
+
+describe('Taunts take effect in the round they are cast', () => {
+  it('redirects an attack already aimed at someone else this round', () => {
+    const tank = makeHero({ speed: 9, abilities: [taunt()] });
+    const healer = makeHero({ speed: 1 });
+    const enemy = makeEnemy({ speed: 5 });
+    const combat = new Combat([tank, healer], [enemy, makeEnemy({ speed: 1 })]);
+    combat.queueAction(enemy, enemy.abilities[0], [healer]); // planned before the taunt
+    combat.queueAction(tank, tank.abilities[0], [enemy]);
+
+    const results = combat.resolveRound();
+    assert.equal(healer.health, 100, 'the healer was spared');
+    assert.equal(tank.health, 80, 'the tank took the hit');
+    const redirect = results.find((result) => result.kind === 'redirect');
+    assert.equal(redirect?.source, enemy);
+    assert.match(redirect.description, /taunted into attacking/);
+  });
+
+  it('AoE Taunt redirects every enemy this round', () => {
+    const tank = validHero({ speed: 9, abilities: [aoeTaunt()] });
+    const healer = makeHero({ speed: 1 });
+    const enemies = [makeEnemy({ speed: 5 }), makeEnemy({ speed: 4 })];
+    const combat = new Combat([tank, healer], enemies);
+    for (const enemy of enemies) combat.queueAction(enemy, enemy.abilities[0], [healer]);
+    combat.queueAction(tank, tank.abilities[0], enemies);
+
+    combat.resolveRound();
+    assert.equal(healer.health, 100);
+    assert.ok(tank.health < 100);
+  });
+
+  it("doesn't affect attacks that already happened earlier in the round", () => {
+    const tank = makeHero({ speed: 1, abilities: [taunt()] });
+    const healer = makeHero();
+    const enemy = makeEnemy({ speed: 15 }); // beats the taunt's 1 speed + 10 bonus
+    const combat = new Combat([tank, healer], [enemy, makeEnemy({ speed: 1 })]);
+    combat.queueAction(enemy, enemy.abilities[0], [healer]); // faster than the taunt
+    combat.queueAction(tank, tank.abilities[0], [enemy]);
+
+    const results = combat.resolveRound();
+    assert.equal(healer.health, 80);
+    assert.equal(results.some((result) => result.kind === 'redirect'), false);
+  });
+
+  it("doesn't redirect area attacks or heals", () => {
+    const tank = makeHero({ speed: 9, abilities: [taunt()] });
+    const healer = makeHero({ speed: 1 });
+    const blaster = makeEnemy({ speed: 5, abilities: [ability({ name: 'Blast', target: 'all_enemies' })] });
+    const combat = new Combat([tank, healer], [blaster, makeEnemy({ speed: 1 })]);
+    combat.queueAction(blaster, blaster.abilities[0], [tank, healer]);
+    combat.queueAction(tank, tank.abilities[0], [blaster]);
+
+    combat.resolveRound();
+    assert.equal(healer.health, 80, 'area attacks still hit everyone');
+  });
+});

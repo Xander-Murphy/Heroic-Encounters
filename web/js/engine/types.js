@@ -102,6 +102,7 @@ export const ResultKind = freeze({
   DISPEL: 'dispel',
   PHASE: 'phase',
   DEATH_RATTLE: 'death_rattle',
+  REDIRECT: 'redirect', // a taunt changed who an action hits
   SKIP: 'skip',
 });
 
