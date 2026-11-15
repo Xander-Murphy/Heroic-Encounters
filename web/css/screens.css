@@ -56,6 +56,23 @@
 .theme-earth { --theme-color: #8a5a32; } .theme-ivory { --theme-color: #cfc8b4; } .theme-steel { --theme-color: #7d8899; }
 .theme-shadow { --theme-color: #3d3550; } .theme-rose { --theme-color: #c25683; }
 .sticky-start { position: sticky; bottom: 0; z-index: 20; display: flex; justify-content: center; padding: 12px; margin-top: 12px; background: linear-gradient(transparent, var(--background) 40%); }
+/* Party is full: the start button glows to point at the dungeon list */
+.sticky-start .next-step { animation: next-step-glow 1.6s ease-in-out infinite; }
+@keyframes next-step-glow {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--gold) 60%, transparent); }
+  50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold) 35%, transparent), 0 0 22px 6px color-mix(in srgb, var(--gold) 45%, transparent); }
+}
+:root[data-motion="reduced"] .sticky-start .next-step { animation: none; box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold) 35%, transparent), 0 0 22px 6px color-mix(in srgb, var(--gold) 45%, transparent); }
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion="full"]) .sticky-start .next-step { animation: none; box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold) 35%, transparent), 0 0 22px 6px color-mix(in srgb, var(--gold) 45%, transparent); }
+}
+/* Keep the heading clear of the sticky top nav when scrolled to */
+.dungeon-heading { scroll-margin-top: 80px; }
+.dungeon-grid.flash { animation: dungeon-flash 1.2s ease-out 0.3s; border-radius: var(--radius); }
+@keyframes dungeon-flash {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  30% { box-shadow: 0 0 0 4px var(--gold), 0 0 28px 6px color-mix(in srgb, var(--gold) 50%, transparent); }
+}
 
 /* ---------- Summary ---------- */
 .result-banner { text-align: center; padding: 14px; border-radius: var(--radius); margin-bottom: 14px; }

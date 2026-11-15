@@ -64,3 +64,53 @@ export async function copyToClipboard(text) {
 }
 
 export const wait = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
+
+/**
+ * Turns linear progress (0 → 1) into a gentle start and stop: slow at the
+ * beginning, fastest in the middle, slow again at the end. The same curve as
+ * CSS's ease-in-out, but cubic.
+ */
+function easeInOut(progress) {
+  if (progress < 0.5) {
+    // First half: speed up. Cubing makes small numbers grow slowly at first.
+    const half = progress * 2; // 0 → 1 across the first half
+    return (half ** 3) / 2; // covers 0 → 0.5 of the distance
+  }
+  // Second half: the first half's curve flipped around, so it slows down.
+  const half = (1 - progress) * 2; // 1 → 0 across the second half
+  return 1 - (half ** 3) / 2; // covers 0.5 → 1 of the distance
+}
+
+/**
+ * Scroll the page so an element sits at the top (respecting its CSS
+ * scroll-margin-top). With smooth set this animates the scroll itself rather
+ * than using behavior: 'smooth', which browsers silently turn into a jump
+ * when the OS asks for reduced motion, even if the player picked "Full
+ * animations" in the game. Stops if the player scrolls during it.
+ */
+export function scrollToElement(element, { smooth = true } = {}) {
+  const margin = parseFloat(getComputedStyle(element).scrollMarginTop) || 0;
+  const maxY = document.documentElement.scrollHeight - window.innerHeight;
+  const start = window.scrollY;
+  const target = Math.max(0, Math.min(maxY, start + element.getBoundingClientRect().top - margin));
+  const distance = target - start;
+  if (!smooth || Math.abs(distance) < 2) {
+    window.scrollTo(0, target);
+    return;
+  }
+
+  const duration = Math.min(700, 250 + Math.abs(distance) * 0.4);
+  let cancelled = false;
+  const cancel = () => { cancelled = true; };
+  const userInput = ['wheel', 'touchstart', 'keydown'];
+  userInput.forEach((type) => window.addEventListener(type, cancel, { once: true, passive: true }));
+  const began = performance.now();
+  const step = (now) => {
+    if (cancelled) return;
+    const progress = Math.min(1, (now - began) / duration);
+    window.scrollTo(0, start + distance * easeInOut(progress));
+    if (progress < 1) requestAnimationFrame(step);
+    else userInput.forEach((type) => window.removeEventListener(type, cancel));
+  };
+  requestAnimationFrame(step);
+}
