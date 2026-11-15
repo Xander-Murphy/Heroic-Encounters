@@ -41,7 +41,11 @@ Exporting a dungeon automatically includes the custom enemies it uses. Built-in 
 | `status` | `status`: `{ name, icon, type, category, magnitude, duration, schools, stat, tickSchool }` |
 | `dispel` | `categories`, `harmful` |
 
+Any effect may add `"self": true` to apply it once to the caster instead of to each target (e.g. an AoE taunt that also gives the caster +defense). Omitted means the targets.
+
 Status `type`: buff, debuff, damage_over_time, heal_over_time, immunity, stun, taunt. `category`: physical, magical, curse, disease, poison.
+
+**Taunt** is put on the enemies being taunted: while it lasts, the carrier's single-target attacks must hit whoever applied it. Aim the ability at `single_enemy` for a taunt or `all_enemies` for an AoE taunt. It takes effect immediately: single-target attacks later in the same round are redirected to the taunter (give taunts a high `priority` so they act first). (Older content that put a taunt on the caster with `target: "self"` is converted to an AoE taunt automatically, with its other effects kept on the caster.)
 
 **Dungeon** — `id`, `kind: "dungeon"`, `name`, `description`, `icon`, `theme`, `difficulty` 1–5, `scaling` 0–0.3 (enemy attack growth per wave), `restBetweenWaves` 0–0.5, `waves` (1–6) of `{ enemies: [ids], min, max }` (1–4 enemies), `boss` (enemy id).
 

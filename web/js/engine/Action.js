@@ -15,13 +15,21 @@ export class Action {
   }
 
   /**
-   * If a single chosen target died earlier in the round, pick the first
-   * remaining valid target instead (so a turn isn't wasted).
+   * Re-check a single chosen target just before acting. If it is no longer
+   * a valid target, pick the first valid one instead:
+   * - it died earlier in the round (so the turn isn't wasted), or
+   * - a taunt cast earlier this round now forces a different target.
+   * Returns true when a living target was swapped out because of a taunt.
    */
   retarget(battlefield) {
     const resolver = resolverFor(this.ability.target);
-    if (!resolver.requiresChoice || this.hasLivingTarget()) return;
+    if (!resolver.requiresChoice) return false;
+    const candidates = resolver.candidates(this.actor, battlefield);
+    if (this.targets.every((target) => candidates.includes(target))) return false;
+
+    const taunted = this.hasLivingTarget();
     this.targets = resolver.resolve(this.actor, battlefield, 0);
+    return taunted && this.targets.length > 0;
   }
 
   canExecute() {

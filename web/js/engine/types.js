@@ -28,6 +28,8 @@ export const EffectType = freeze({
   HEAL_OVER_TIME: 'heal_over_time',
   IMMUNITY: 'immunity',
   STUN: 'stun',
+  // The carrier must aim single-target attacks at whoever applied it. Cast on
+  // one enemy it's a taunt; cast on all enemies it's an AoE taunt.
   TAUNT: 'taunt',
 });
 
@@ -36,6 +38,7 @@ export const HARMFUL_EFFECT_TYPES = freeze([
   EffectType.DEBUFF,
   EffectType.DAMAGE_OVER_TIME,
   EffectType.STUN,
+  EffectType.TAUNT,
 ]);
 
 export const EffectCategory = freeze({
@@ -99,6 +102,7 @@ export const ResultKind = freeze({
   DISPEL: 'dispel',
   PHASE: 'phase',
   DEATH_RATTLE: 'death_rattle',
+  REDIRECT: 'redirect', // a taunt changed who an action hits
   SKIP: 'skip',
 });
 
@@ -114,5 +118,5 @@ export const TARGET_LABELS = freeze({
 
 export const EFFECT_TYPE_LABELS = freeze({
   buff: 'Buff', debuff: 'Debuff', damage_over_time: 'Damage over time',
-  heal_over_time: 'Heal over time', immunity: 'Immunity', stun: 'Stun', taunt: 'Taunt',
+  heal_over_time: 'Heal over time', immunity: 'Immunity', stun: 'Stun', taunt: 'Taunt (must attack the caster)',
 });

@@ -80,8 +80,13 @@ export class Character extends Prototype {
     return this.isAlive() && !this.activeEffects.some((effect) => effect.preventsActing());
   }
 
-  isTaunting() {
-    return this.isAlive() && this.activeEffects.some((effect) => effect.forcesTargeting());
+  /** uid of the character this one has been taunted into attacking, or null. */
+  forcedTargetUid() {
+    for (const effect of this.activeEffects) {
+      const uid = effect.forcedTargetUid();
+      if (uid !== null) return uid;
+    }
+    return null;
   }
 
   /** Abilities off cooldown, plus the basic attack, which is always available. */

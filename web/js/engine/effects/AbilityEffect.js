@@ -23,6 +23,12 @@ export class AbilityEffect {
   /** Key used in content definitions, e.g. { "type": "damage" }. */
   static type = 'abstract';
 
+  /**
+   * When true the ability applies this effect once to its caster instead of
+   * to each target (e.g. an AoE taunt that also raises the caster's defense).
+   */
+  appliesToSelf = false;
+
   /** Build an effect from its JSON definition. */
   static fromDefinition(_definition, _factory) {
     return new this();
@@ -188,7 +194,7 @@ export class ApplyStatusEffect extends AbilityEffect {
       debuff: status.magnitude * 1.5,
       immunity: 18,
       stun: 30,
-      taunt: 12,
+      taunt: 10,
     }[status.type] ?? 5;
     // Resistance is a percentage, so a point of it is worth less than a point of attack/defense
     const statWeight = status.stat === 'resistance' ? 0.4 : 1;

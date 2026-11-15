@@ -18,7 +18,8 @@ export const ABILITY_PRESETS = Object.freeze([
   { id: 'debuff', label: '🔨 Weaken an enemy', build: () => ability('Sunder', { power: 15, cooldown: 3, effects: [{ type: 'damage' }, { type: 'status', status: clone(STATUS.armorBreak) }] }) },
   { id: 'stun', label: '💫 Stun an enemy', build: () => ability('Concuss', { power: 10, cooldown: 4, priority: 4, effects: [{ type: 'damage' }, { type: 'status', status: clone(STATUS.stun) }] }) },
   { id: 'immunity', label: '💨 Become immune', build: () => ability('Phase Out', { cooldown: 4, target: 'self', priority: 10, effects: [{ type: 'status', status: clone(STATUS.physicalImmunity) }] }) },
-  { id: 'taunt', label: '📣 Taunt (protect allies)', build: () => ability('Provoke', { cooldown: 3, target: 'self', priority: 10, effects: [{ type: 'status', status: clone(STATUS.taunt) }, { type: 'status', status: clone(STATUS.guard) }] }) },
+  { id: 'taunt', label: '📣 Taunt (one enemy)', build: () => ability('Taunt', { cooldown: 2, priority: 10, effects: [{ type: 'status', status: clone(STATUS.taunt) }] }) },
+  { id: 'aoe_taunt', label: '📣 AoE Taunt (all enemies)', build: () => ability('AoE Taunt', { cooldown: 3, target: 'all_enemies', priority: 10, effects: [{ type: 'status', status: clone(STATUS.taunt) }, { type: 'status', status: clone(STATUS.guard), self: true }] }) },
   { id: 'lifesteal', label: '🩸 Drain life', build: () => ability('Siphon', { power: 22, cooldown: 2, school: 'shadow', effects: [{ type: 'lifesteal', percent: 50 }] }) },
   { id: 'cleanse', label: '🫧 Cleanse allies', build: () => ability('Purify', { power: 8, cooldown: 3, target: 'all_allies', school: 'holy', effects: [clone(CLEANSE_ALL), { type: 'heal' }] }) },
 ]);

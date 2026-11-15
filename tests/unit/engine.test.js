@@ -98,12 +98,14 @@ describe('Prototype cloning', () => {
 });
 
 describe('Targeting', () => {
-  it('forces single-target attacks onto a taunting character', () => {
+  it('forces a taunted character to aim single-target attacks at the taunter', () => {
     const tank = makeHero({ name: 'Tank' });
     const other = makeHero({ name: 'Other' });
     const enemy = makeEnemy();
     const combat = new Combat([tank, other], [enemy]);
-    tank.addEffect(factory.createStatusEffect(status({ type: 'taunt', stat: null })));
+    const taunt = factory.createStatusEffect(status({ type: 'taunt', stat: null }));
+    taunt.sourceUid = tank.uid;
+    enemy.addEffect(taunt);
     assert.deepEqual(resolverFor('single_enemy').candidates(enemy, combat.battlefield), [tank]);
     assert.equal(resolverFor('all_enemies').candidates(enemy, combat.battlefield).length, 2);
   });

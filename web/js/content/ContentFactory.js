@@ -26,7 +26,11 @@ export class ContentFactory {
   createAbility(definition) {
     return new Ability({
       ...definition,
-      effects: definition.effects.map((effect) => this.effects.create(effect, this)),
+      effects: definition.effects.map((effect) => {
+        const created = this.effects.create(effect, this);
+        if (effect.self) created.appliesToSelf = true;
+        return created;
+      }),
     });
   }
 

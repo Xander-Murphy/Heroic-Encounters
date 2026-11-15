@@ -169,10 +169,16 @@ export class Combat {
         };
       }
 
-      action.retarget(this.battlefield);
+      const redirected = action.retarget(this.battlefield);
       if (!action.canExecute()) continue;
 
       const results = action.execute();
+      if (redirected) {
+        results.unshift(new EffectResult({
+          source: action.actor, target: action.actor, ability: action.ability, kind: ResultKind.REDIRECT,
+          description: `${action.actor.name} is taunted into attacking ${action.targets[0].name}`,
+        }));
+      }
       recordKillers(results);
       results.push(...this.#triggerDeathRattles());
       for (const character of this.everyone) {

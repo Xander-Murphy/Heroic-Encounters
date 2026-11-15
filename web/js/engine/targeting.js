@@ -84,7 +84,10 @@ class AllAlliesResolver extends TargetResolver {
   }
 }
 
-/** A taunting opponent must be the target of single-target attacks. */
+/**
+ * A taunted attacker must aim single-target attacks at whoever taunted it
+ * (while that character is alive). Otherwise any living opponent.
+ */
 class SingleEnemyResolver extends TargetResolver {
   get requiresChoice() {
     return true;
@@ -92,8 +95,9 @@ class SingleEnemyResolver extends TargetResolver {
 
   candidates(actor, battlefield) {
     const opponents = living(battlefield.enemiesOf(actor));
-    const taunting = opponents.filter((opponent) => opponent.isTaunting());
-    return taunting.length ? taunting : opponents;
+    const forcedUid = actor.forcedTargetUid();
+    const forced = forcedUid === null ? null : opponents.find((opponent) => opponent.uid === forcedUid);
+    return forced ? [forced] : opponents;
   }
 }
 
