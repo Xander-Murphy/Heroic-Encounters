@@ -51,6 +51,10 @@ export class App {
     this.session = new GameSession(services);
     this.toaster = new Toaster();
     this.animator = new Animator({ getSettings: () => services.settings });
+    // Lets the CSS follow the Animations setting ('system' | 'full' | 'reduced')
+    const applyMotion = () => { document.documentElement.dataset.motion = services.settings.motion; };
+    applyMotion();
+    services.events.on('settings.changed', applyMotion);
     this.current = null;
     this.navButtons = new Map();
 

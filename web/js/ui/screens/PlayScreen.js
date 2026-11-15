@@ -1,5 +1,5 @@
 import { ContentSource } from '../../content/ContentLibrary.js';
-import { h, plural } from '../dom.js';
+import { h, plural, scrollToElement } from '../dom.js';
 import { Screen, screenHeader } from '../Screen.js';
 import { characterCard } from '../components/Card.js';
 import { emptyState, tabs } from '../components/widgets.js';
@@ -25,7 +25,7 @@ export class PlayScreen extends Screen {
       screenHeader('Choose your party', 'Pick three heroes — mix damage, defense and healing — then choose a dungeon.'),
       this.#teamStrip(),
       this.#roster(),
-      h('h2', {}, 'Choose a dungeon'),
+      h('h2', { id: 'choose-dungeon', class: 'dungeon-heading' }, 'Choose a dungeon'),
       this.#dungeons(),
       h('div', { class: 'sticky-start' }, this.#startButton()),
     ];
@@ -120,17 +120,40 @@ export class PlayScreen extends Screen {
     }));
   }
 
+  /**
+   * The sticky button at the bottom always says what to do next. Once the
+   * party is full but no dungeon is chosen, it lights up and takes the player
+   * down to the dungeons, since a greyed-out "Choose a dungeon" went unnoticed.
+   */
   #startButton() {
+    const missing = TEAM_SIZE - this.team.length;
+    if (missing > 0) {
+      return h('button', { class: 'primary big', disabled: true }, `Choose ${missing} more ${missing === 1 ? 'hero' : 'heroes'}`);
+    }
     const dungeon = this.services.library.get(this.dungeonId);
-    const ready = this.team.length === TEAM_SIZE && dungeon && this.services.library.isPlayable(dungeon);
-    const hint = this.team.length < TEAM_SIZE ? `Choose ${TEAM_SIZE - this.team.length} more ${TEAM_SIZE - this.team.length === 1 ? 'hero' : 'heroes'}` : !dungeon ? 'Choose a dungeon' : `Enter ${dungeon.name}`;
+    if (!dungeon || !this.services.library.isPlayable(dungeon)) {
+      return h('button', { class: 'primary big next-step', onclick: () => this.#showDungeons() }, 'Choose a dungeon ↓');
+    }
     return h('button', {
       class: 'primary big',
-      disabled: !ready,
       onclick: () => {
         this.app.session.startRun({ dungeonId: this.dungeonId, heroIds: this.team });
         this.app.navigate('combat');
       },
-    }, ready ? `⚔️ ${hint}` : hint);
+    }, `⚔️ Enter ${dungeon.name}`);
+  }
+
+  /** Scroll to the dungeon list, flash it, and move keyboard focus into it. */
+  #showDungeons() {
+    const heading = this.root.querySelector('#choose-dungeon');
+    const grid = this.root.querySelector('.dungeon-grid');
+    if (!heading || !grid) return;
+    // Follows the game's Animations setting, not just the system one
+    scrollToElement(heading, { smooth: !this.app.animator.reduced });
+    grid.classList.remove('flash');
+    void grid.offsetWidth; // restart the animation if it is clicked twice
+    grid.classList.add('flash');
+    grid.addEventListener('animationend', () => grid.classList.remove('flash'), { once: true });
+    grid.querySelector('.dungeon-card:not([disabled])')?.focus({ preventScroll: true });
   }
 }

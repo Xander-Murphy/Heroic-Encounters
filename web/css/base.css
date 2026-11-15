@@ -218,8 +218,14 @@ dialog.modal::backdrop { background: #000a; }
   h1 { font-size: 1.45rem; }
 }
 
+/* Reduced motion: chosen in Settings, or from the system unless Settings says "Full animations" (data-motion is set by App) */
+:root[data-motion="reduced"] *, :root[data-motion="reduced"] *::before, :root[data-motion="reduced"] *::after {
+  transition-duration: 0.01ms !important; animation-duration: 0.01ms !important;
+}
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+  :root:not([data-motion="full"]) *, :root:not([data-motion="full"]) *::before, :root:not([data-motion="full"]) *::after {
+    transition-duration: 0.01ms !important; animation-duration: 0.01ms !important;
+  }
 }
 
 @media (max-width: 720px) {
