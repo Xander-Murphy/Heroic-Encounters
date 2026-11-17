@@ -30,6 +30,11 @@
   0%, 100% { box-shadow: 0 0 0 4px #fff, 0 0 0 8px #4db8ff, 0 0 24px 8px #4db8ff; }
   50% { box-shadow: 0 0 0 4px #fff, 0 0 0 8px #4db8ff, 0 0 44px 18px #4db8ff; }
 }
+/* Reduced motion: a steady glow, since the pulse is the only thing showing the selection */
+:root[data-motion="reduced"] .tcg-card.selected:not(.ally-target) { animation: none; box-shadow: 0 0 0 4px #fff, 0 0 0 8px #4db8ff, 0 0 30px 10px #4db8ff; }
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion="full"]) .tcg-card.selected:not(.ally-target) { animation: none; box-shadow: 0 0 0 4px #fff, 0 0 0 8px #4db8ff, 0 0 30px 10px #4db8ff; }
+}
 .tcg-card.targetable { cursor: pointer; box-shadow: 0 0 0 4px var(--red), 0 0 18px var(--red); }
 .tcg-card.targetable:hover { transform: translateY(-4px) scale(1.02); }
 .tcg-card.ally-target { cursor: pointer; box-shadow: 0 0 0 4px #5fd16a, 0 0 18px #5fd16a; }

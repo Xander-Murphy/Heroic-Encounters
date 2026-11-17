@@ -218,13 +218,17 @@ dialog.modal::backdrop { background: #000a; }
   h1 { font-size: 1.45rem; }
 }
 
-/* Reduced motion: chosen in Settings, or from the system unless Settings says "Full animations" (data-motion is set by App) */
+/*
+ * Reduced motion: chosen in Settings, or from the system unless Settings says "Full animations" (data-motion is set by App).
+ * Animations finish instantly and play once: a looping one would otherwise restart every 0.01ms and flicker.
+ * Anything that loops to show state (a glow) needs its own steady style under reduced motion.
+ */
 :root[data-motion="reduced"] *, :root[data-motion="reduced"] *::before, :root[data-motion="reduced"] *::after {
-  transition-duration: 0.01ms !important; animation-duration: 0.01ms !important;
+  transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important;
 }
 @media (prefers-reduced-motion: reduce) {
   :root:not([data-motion="full"]) *, :root:not([data-motion="full"]) *::before, :root:not([data-motion="full"]) *::after {
-    transition-duration: 0.01ms !important; animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important;
   }
 }
 
