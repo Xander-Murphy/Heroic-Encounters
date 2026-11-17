@@ -12,6 +12,12 @@ const INSTALL_ID_PATTERN = /^[a-z0-9-]{6,64}$/i;
 
 const text = (value, max) => (typeof value === 'string' ? value.trim().slice(0, max) : '');
 
+/** The emoji its creator picked: a character's portrait, or a dungeon's icon. */
+const iconOf = (definition) => (definition?.kind === 'dungeon' ? definition.icon : definition?.portrait) || null;
+
+/** Icons are worked out from share strings and remembered; past this many, start over. */
+const MAX_CACHED_ICONS = 5000;
+
 /**
  * The community content database: publish a share string, get a short code
  * back; look content up by code; browse, like and report. The account that
@@ -26,6 +32,7 @@ export class ContentController {
     this.rateLimiter = rateLimiter;
     this.authenticator = authenticator;
     this.codec = codec;
+    this.icons = new Map(); // content hash → icon
   }
 
   register(router) {
@@ -110,7 +117,7 @@ export class ContentController {
     const entry = await this.store.getByCode(this.#code(params.code));
     if (!entry) throw new HttpError(404, 'No content was found with that code.');
     const user = await this.authenticator?.userFor(request);
-    sendJson(response, 200, { ...this.#listing(entry, user), shareString: entry.shareString });
+    sendJson(response, 200, { ...await this.#listing(entry, user), shareString: entry.shareString });
   }
 
   async list({ request, response, query }) {
@@ -121,7 +128,7 @@ export class ContentController {
     const q = text(query.get('q') ?? '', 40);
     const entries = await this.store.listContent({ kind, sort, q, limit, offset });
     const user = await this.authenticator?.userFor(request);
-    sendJson(response, 200, { items: entries.map((entry) => this.#listing(entry, user)) });
+    sendJson(response, 200, { items: await Promise.all(entries.map((entry) => this.#listing(entry, user))) });
   }
 
   /** The signed-in account's uploads, newest first, so a device can recognize its own content. */
@@ -129,7 +136,8 @@ export class ContentController {
     const user = await this.authenticator?.userFor(request);
     if (!user) throw new HttpError(401, 'Sign in to see your uploads.');
     const entries = await this.store.listOwnedBy(user.id);
-    sendJson(response, 200, { items: entries.map((entry) => ({ ...this.#listing(entry, user), shareString: entry.shareString })) });
+    const items = await Promise.all(entries.map(async (entry) => ({ ...await this.#listing(entry, user), shareString: entry.shareString })));
+    sendJson(response, 200, { items });
   }
 
   async like({ request, response, params, ip }) {
@@ -199,9 +207,32 @@ export class ContentController {
     return { user, entry };
   }
 
-  /** The public listing plus whether it belongs to the player asking (the owner's id itself stays private). */
-  #listing(entry, user) {
-    return { ...toListing(entry), mine: Boolean(user && entry.ownerId === user.id) };
+  /**
+   * The public listing plus its icon and whether it belongs to the player
+   * asking (the owner's id itself stays private).
+   */
+  async #listing(entry, user) {
+    return { ...toListing(entry), icon: await this.#iconFor(entry), mine: Boolean(user && entry.ownerId === user.id) };
+  }
+
+  /**
+   * The icon of an entry's main item, read from its share string. Cached by
+   * content hash, so each version is decoded once, and an update (new hash)
+   * picks up a changed icon. Null if it can't be read; the game then shows
+   * the default for its kind.
+   */
+  async #iconFor(entry) {
+    if (this.icons.has(entry.hash)) return this.icons.get(entry.hash);
+    let icon = null;
+    try {
+      const { items } = readBundle(await this.codec.decode(entry.shareString));
+      icon = iconOf(items[0]?.definition);
+    } catch {
+      // Unreadable: fall back to the kind's icon
+    }
+    if (this.icons.size >= MAX_CACHED_ICONS) this.icons.clear();
+    this.icons.set(entry.hash, icon);
+    return icon;
   }
 
   /** Who a like or report counts for: the account when signed in (one per person), else the install. */

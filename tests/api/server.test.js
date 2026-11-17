@@ -191,6 +191,18 @@ for (const kind of ['memory', 'sqlite', ...(mongoUri ? ['mongo'] : [])]) {
         assert.equal((await unchanged.json()).updated, false);
       });
 
+      it("lists each entry with its creator's emoji, following updates", async () => {
+        const token = await signUp('IconPicker');
+        const code = await publishAs(token, heroDef({ id: 'h-icon-1', name: 'Fox', portrait: '🦊' }));
+        const iconIn = async (url) => (await (await send('GET', url, token)).json()).items.find((item) => item.code === code)?.icon;
+        assert.equal(await iconIn('/api/content?sort=recent&limit=50'), '🦊');
+        assert.equal(await iconIn('/api/me/content'), '🦊');
+        assert.equal((await (await fetch(`${base}/api/content/${code}`)).json()).icon, '🦊');
+
+        await send('PUT', `/api/content/${code}`, token, { shareString: await shareOf([heroDef({ id: 'h-icon-1', name: 'Fox', portrait: '🐺' })]) });
+        assert.equal(await iconIn('/api/content?sort=recent&limit=50'), '🐺', 'a new portrait shows after an update');
+      });
+
       it('updates instead of duplicating when an account republishes its own hero', async () => {
         const token = await signUp('Forgetful');
         const code = await publishAs(token, heroDef({ id: 'h-lost-1', name: 'Original' }));
