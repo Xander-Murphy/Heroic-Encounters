@@ -117,7 +117,8 @@ export class CommunityScreen extends Screen {
     }, `👍 ${entry.likes}`);
 
     return h('article', { class: 'community-entry' },
-      h('div', { class: 'community-icon' }, KIND_ICON[entry.kind] ?? '❔'),
+      // The creator's own emoji; servers from before icons were listed don't send one
+      h('div', { class: 'community-icon' }, entry.icon || KIND_ICON[entry.kind] || '❔'),
       h('div', { class: 'community-info' },
         h('h3', {}, entry.title),
         h('div', { class: 'muted' }, `by ${entry.author || 'anonymous'} · ${new Date(entry.createdAt).toLocaleDateString()}${entry.updatedAt ? ` · updated ${new Date(entry.updatedAt).toLocaleDateString()}` : ''} · ${plural(entry.itemCount, 'item')} · ${entry.downloads} downloads`),
